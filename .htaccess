@@ -1,0 +1,12 @@
+<IfModule mod_rewrite.c>
+    RewriteEngine On
+
+    # Disable PageSpeed for Pusher Auth to prevent stripping JSON body
+    <IfModule mod_headers.c>
+        SetEnvIf Request_URI "/admin/pusher/auth" ModPagespeed=off
+    </IfModule>
+
+    # Rewrite all requests to the public directory
+    RewriteCond %{REQUEST_URI} !^/public/
+    RewriteRule ^(.*)$ public/$1 [L,QSA]
+</IfModule>

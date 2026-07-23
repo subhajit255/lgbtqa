@@ -1,0 +1,118 @@
+[data-bs-theme=dark] .login_left {
+    background: url('../media/auth/dating-login.png') no-repeat center !important;
+    background-size: cover;
+    position: relative;
+}
+
+[data-bs-theme=light] .login_left {
+    background: url('../media/auth/dating-login.png') no-repeat center !important;
+    background-size: cover;
+    position: relative;
+}
+
+.login_left::before {
+    content: '';
+    position: absolute;
+    background-color: #00000091;
+    width: 100%;
+    height: 100%;
+}
+
+.login-leftcon {
+    position: absolute;
+    z-index: 9;
+    width: 75%;
+    top: 50%;
+    transform: translateY(-50%);
+    color: #fff;
+}
+
+.login-leftcon h1 {
+    color: #fff;
+}
+
+.login-right {
+    padding: 15px;
+    border: 1px solid #dfdfdf;
+    border-radius: 5px;
+    box-shadow: 6px 11px 15px 2px #9d9d9d36;
+}
+
+#previewImages .img-container {
+    position: relative;
+    display: inline-block;
+    margin: 8px;
+}
+
+#previewImages img {
+    width: 100px;
+    border-radius: .5rem;
+    box-shadow: 0 0 4px #aaa;
+}
+
+.removeImage {
+    position: absolute;
+    top: -10px;
+    right: -10px;
+    color: #fff;
+    background: #dc3545;
+    border-radius: 50%;
+    padding: 3px 6px;
+    font-size: 14px;
+    cursor: pointer;
+    border: 2px solid #fff;
+    z-index: 10;
+}
+
+.img-container {
+    position: relative;
+    display: inline-block;
+}
+
+.img-container img {
+    width: 100px;
+    border-radius: 0.5rem;
+    box-shadow: 0 0 4px #aaa;
+}
+
+.removeImage {
+    position: absolute;
+    top: 4px;
+    right: 4px;
+    background: #dc3545;
+    color: #fff;
+    border-radius: 50%;
+    padding: 2px 6px;
+    font-size: 18px;
+    line-height: 1;
+    cursor: pointer;
+    border: 2px solid #fff;
+    z-index: 2;
+}
+
+.dropzone-area {
+    background: #f8f9fa;
+    border: 2px dashed #0d6efd;
+    cursor: pointer;
+    transition: border-color 0.3s, background 0.3s;
+}
+
+.dropzone-area.dragover {
+    border-color: #0056b3;
+    background: #e9ecef;
+}
+
+.formSubmit .login-right {
+    background-color: #FCF9F1;
+}
+
+.dropzone-area {
+    min-height: 150px;
+}
+
+#dropzoneText {
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+}

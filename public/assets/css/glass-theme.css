@@ -1,0 +1,247 @@
+:root {
+    /* Light Purple & Sky Blue Color Palette */
+    --bg-gradient-start: #be93ff;
+    /* Light Purple */
+    --bg-gradient-mid: #c489ff;
+    /* Medium Purple */
+    --bg-gradient-end: #78d4ff;
+    /* Light Sky Blue */
+    --primary-color: #b66dff;
+    /* Light Purple */
+    --secondary-color: #38bbee;
+    /* Sky Blue */
+    --accent-color: #47c2fb;
+    /* Light Sky Blue */
+
+    /* Enhanced Liquid Glass Variables */
+    --glass-bg: rgba(255, 255, 255, 0.15);
+    --glass-bg-hover: rgba(255, 255, 255, 0.25);
+    --glass-border: rgba(255, 255, 255, 0.3);
+    --glass-shadow: 0 8px 32px 0 rgba(31, 38, 135, 0.15);
+    --glass-text: #000;
+    /* Black text as requested by user */
+    --glass-text-muted: rgba(45, 55, 72, 0.7);
+    --glass-text-light: #ffffff;
+
+    /* Global Overrides */
+    --bs-body-bg: var(--bg-gradient-start);
+    --bs-body-color: var(--glass-text);
+}
+
+body {
+    background: linear-gradient(135deg, var(--bg-gradient-start) 0%, var(--bg-gradient-mid) 50%, var(--bg-gradient-end) 100%) !important;
+    background-attachment: fixed !important;
+    color: var(--glass-text);
+    font-family: 'Inter', sans-serif;
+    min-height: 100vh;
+}
+
+/* Enhanced Liquid Glass Components */
+.glass-panel,
+.card,
+.app-sidebar,
+.app-header {
+    background: var(--glass-bg) !important;
+    backdrop-filter: blur(20px) saturate(180%);
+    -webkit-backdrop-filter: blur(20px) saturate(180%);
+    border: 1px solid var(--glass-border);
+    box-shadow: var(--glass-shadow);
+    border-radius: 16px;
+}
+
+.glass-card {
+    background: var(--glass-bg);
+    backdrop-filter: blur(20px) saturate(180%);
+    -webkit-backdrop-filter: blur(20px) saturate(180%);
+    border: 1px solid var(--glass-border);
+    border-radius: 16px;
+    padding: 20px;
+    margin-bottom: 20px;
+    transition: transform 0.3s ease, background 0.3s ease, box-shadow 0.3s ease;
+    box-shadow: var(--glass-shadow);
+}
+
+.glass-card:hover {
+    background: var(--glass-bg-hover);
+    transform: translateY(-5px);
+    box-shadow: 0 12px 40px 0 rgba(31, 38, 135, 0.25);
+}
+
+/* Typography & Text */
+h1,
+h2,
+h3,
+h4,
+h5,
+h6,
+.text-dark,
+.text-gray-800,
+.text-gray-900 {
+    color: var(--glass-text) !important;
+}
+
+.text-muted,
+.text-gray-400,
+.text-gray-500,
+.text-gray-600 {
+    color: var(--glass-text-muted) !important;
+}
+
+/* Tables */
+.table {
+    --bs-table-bg: transparent;
+    --bs-table-color: var(--glass-text);
+    --bs-table-hover-color: var(--glass-text);
+    --bs-table-hover-bg: var(--glass-bg-hover);
+    border-color: var(--glass-border);
+}
+
+.table> :not(caption)>*>* {
+    background-color: transparent !important;
+    border-bottom-color: var(--glass-border);
+}
+
+/* Form Controls with Liquid Glass Effect */
+.form-control,
+.form-select {
+    background-color: rgba(255, 255, 255, 0.4) !important;
+    backdrop-filter: blur(10px);
+    -webkit-backdrop-filter: blur(10px);
+    border: 1px solid #D9B3FF !important;
+    /* Light purple border */
+    color: var(--glass-text) !important;
+    border-radius: 12px;
+}
+
+.form-control::placeholder {
+    color: var(--glass-text-muted) !important;
+}
+
+.form-control:focus,
+.form-select:focus {
+    background-color: rgba(255, 255, 255, 0.6) !important;
+    border-color: var(--primary-color) !important;
+    box-shadow: 0 0 0 0.25rem rgba(217, 179, 255, 0.3) !important;
+    color: var(--glass-text) !important;
+}
+
+/* Gradient Buttons - Light Purple to Sky Blue */
+.btn-primary,
+.btn-dark {
+    background: linear-gradient(135deg, var(--primary-color) 0%, var(--secondary-color) 100%) !important;
+    border: none !important;
+    box-shadow: 0 4px 15px rgba(135, 206, 235, 0.4);
+    color: var(--glass-text-light) !important;
+    font-weight: 600;
+    border-radius: 12px;
+    transition: all 0.3s ease;
+    padding: 12px 24px;
+}
+
+.btn-primary:hover,
+.btn-dark:hover {
+    background: linear-gradient(135deg, var(--secondary-color) 0%, var(--primary-color) 100%) !important;
+    box-shadow: 0 6px 20px rgba(135, 206, 235, 0.6);
+    transform: translateY(-2px);
+}
+
+.glass-btn {
+    background: var(--glass-bg);
+    backdrop-filter: blur(10px);
+    -webkit-backdrop-filter: blur(10px);
+    border: 1px solid var(--glass-border);
+    color: var(--glass-text);
+    transition: all 0.3s ease;
+    border-radius: 12px;
+}
+
+.glass-btn:hover {
+    background: var(--glass-bg-hover);
+    border-color: var(--primary-color);
+    transform: translateY(-2px);
+}
+
+/* Sidebar & Header Specifics */
+.app-sidebar .menu-item .menu-link {
+    color: var(--glass-text-muted);
+}
+
+.app-sidebar .menu-item .menu-link.active,
+.app-sidebar .menu-item .menu-link:hover {
+    background: linear-gradient(90deg, rgba(217, 179, 255, 0.3) 0%, transparent 100%);
+    color: var(--glass-text);
+    border-left: 3px solid var(--primary-color);
+}
+
+.app-header {
+    background: rgba(230, 213, 255, 0.7) !important;
+    backdrop-filter: blur(20px);
+    -webkit-backdrop-filter: blur(20px);
+}
+
+/* Login Page Specific Styles */
+.login_left {
+    background: transparent !important;
+}
+
+/* Ensure background body is glass */
+.bg-body {
+    background: rgba(255, 255, 255, 0.5) !important;
+    /* Semi-transparent white */
+    backdrop-filter: blur(20px) saturate(180%);
+    -webkit-backdrop-filter: blur(20px) saturate(180%);
+    border: 1px solid rgba(255, 255, 255, 0.6);
+    box-shadow: 0 20px 40px rgba(0, 0, 0, 0.1);
+    border-radius: 20px !important;
+}
+
+/* Fix Input Group */
+.input-group {
+    background: transparent;
+    border-radius: 12px;
+    display: flex;
+    flex-wrap: nowrap;
+}
+
+.input-group .form-control {
+    border-top-right-radius: 0 !important;
+    border-bottom-right-radius: 0 !important;
+    border-right: 0 !important;
+    flex: 1 1 auto;
+}
+
+.input-group .btn {
+    background: linear-gradient(135deg, var(--bg-gradient-mid) 0%, var(--bg-gradient-end) 100%) !important;
+    border-top-left-radius: 0 !important;
+    border-bottom-left-radius: 0 !important;
+    border: 1px solid #D9B3FF !important;
+    border-left: none !important;
+    margin: 0 !important;
+    min-width: 50px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+/* Forgot Password Link */
+a.link-primary {
+    color: #D9B3FF !important;
+    /* Light purple */
+    text-decoration: none;
+    font-weight: 500;
+}
+
+a.link-primary:hover {
+    color: #87CEEB !important;
+    /* Sky Blue */
+    text-decoration: underline;
+}
+
+/* Smooth Transitions & Glows */
+a,
+button,
+.btn,
+.menu-link,
+.form-control {
+    transition: all 0.3s ease-in-out;
+}

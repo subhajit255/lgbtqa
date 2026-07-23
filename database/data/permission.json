@@ -1,0 +1,84 @@
+{
+    "permissions": [
+        {
+            "name": "View User",
+            "group_by": "user"
+        },
+        {
+            "name": "Add User",
+            "group_by": "user"
+        },
+        {
+            "name": "Edit User",
+            "group_by": "user"
+        },
+        {
+            "name": "Delete User",
+            "group_by": "user"
+        },
+        {
+            "name": "View Category",
+            "group_by": "category"
+        },
+        {
+            "name": "Add Category",
+            "group_by": "category"
+        },
+        {
+            "name": "Edit Category",
+            "group_by": "category"
+        },
+        {
+            "name": "Delete Category",
+            "group_by": "category"
+        },
+        {
+            "name": "View Attribute",
+            "group_by": "attribute"
+        },
+        {
+            "name": "Add Attribute",
+            "group_by": "attribute"
+        },
+        {
+            "name": "Edit Attribute",
+            "group_by": "attribute"
+        },
+        {
+            "name": "Delete Attribute",
+            "group_by": "attribute"
+        },
+        {
+            "name": "View Product",
+            "group_by": "product"
+        },
+        {
+            "name": "Add Product",
+            "group_by": "product"
+        },
+        {
+            "name": "Edit Product",
+            "group_by": "product"
+        },
+        {
+            "name": "Delete Product",
+            "group_by": "product"
+        },
+        {
+            "name": "View Role Permissions",
+            "group_by": "role_permissions"
+        },
+        {
+            "name": "Add Role Permissions",
+            "group_by": "role_permissions"
+        },
+        {
+            "name": "Edit Role Permissions",
+            "group_by": "role_permissions"
+        },
+        {
+            "name": "Delete Role Permissions",
+            "group_by": "role_permissions"
+        }
+    ]
+}
