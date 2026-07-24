@@ -29,7 +29,6 @@ class AuthController extends BaseController
 {
     use CommonFunction;
     use SmsTrait;
-
     /**
      * @OA\Post(
      *     path="/api/login",
@@ -1103,13 +1102,13 @@ class AuthController extends BaseController
 
             $search = $request->search ?? null;
             if (! empty($search)) {
-                $countries = array_filter($countries, fn ($country) => isset($country['name']) && stripos($country['name'], $search) !== false);
+                $countries = array_filter($countries, fn($country) => isset($country['name']) && stripos($country['name'], $search) !== false);
                 $countries = array_values($countries);
             }
-            
+
             $perPage = $request->has('per_page') ? (int) $request->input('per_page') : 15;
             $pageNo = $request->has('page_no') ? (int) $request->input('page_no') : 1;
-            
+
             $total = count($countries);
             $offset = ($pageNo - 1) * $perPage;
             $paginatedCountries = array_slice($countries, $offset, $perPage);
@@ -1443,7 +1442,7 @@ class AuthController extends BaseController
         try {
             $countryId = $request->country_id ?? null;
             $states = getStates($countryId);
-            
+
             $perPage = $request->has('per_page') ? (int) $request->input('per_page') : 15;
             $pageNo = $request->has('page_no') ? (int) $request->input('page_no') : 1;
 
@@ -1540,14 +1539,14 @@ class AuthController extends BaseController
                 $states = getStates($countryId);
                 $stateIds = array_column($states, 'id');
                 $allCities = getCities();
-                $cities = array_filter($allCities, fn ($city) => isset($city['state_id']) && in_array($city['state_id'], $stateIds));
+                $cities = array_filter($allCities, fn($city) => isset($city['state_id']) && in_array($city['state_id'], $stateIds));
                 $cities = array_values($cities);
             } else {
                 $cities = getCities();
             }
 
             if (! empty($search)) {
-                $cities = array_filter($cities, fn ($city) => isset($city['name']) && stripos($city['name'], $search) !== false);
+                $cities = array_filter($cities, fn($city) => isset($city['name']) && stripos($city['name'], $search) !== false);
                 $cities = array_values($cities);
             }
 
