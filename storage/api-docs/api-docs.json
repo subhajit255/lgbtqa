@@ -3612,6 +3612,25 @@
                 ]
             }
         },
+        "/api/communities/trending": {
+            "get": {
+                "tags": [
+                    "Communities"
+                ],
+                "summary": "Get list of trending communities",
+                "operationId": "ced44a2fb62558d5fd23a54391d27ae6",
+                "responses": {
+                    "200": {
+                        "description": "Communities retrieved successfully"
+                    }
+                },
+                "security": [
+                    {
+                        "bearerAuth": []
+                    }
+                ]
+            }
+        },
         "/api/events": {
             "get": {
                 "tags": [
@@ -6020,6 +6039,88 @@
                 "responses": {
                     "200": {
                         "description": "User statuses retrieved successfully"
+                    }
+                },
+                "security": [
+                    {
+                        "bearerAuth": []
+                    }
+                ]
+            }
+        },
+        "/api/statuses/same-communities-statuses": {
+            "get": {
+                "tags": [
+                    "Statuses (Stories)"
+                ],
+                "summary": "Get active statuses of users who are members of my communities",
+                "operationId": "b6ba44cb4deb6f5e8c1b6468f15f8d16",
+                "responses": {
+                    "200": {
+                        "description": "Statuses retrieved successfully",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "properties": {
+                                        "status": {
+                                            "type": "boolean",
+                                            "example": true
+                                        },
+                                        "message": {
+                                            "type": "string",
+                                            "example": "Statuses retrieved successfully"
+                                        },
+                                        "data": {
+                                            "type": "array",
+                                            "items": {
+                                                "properties": {
+                                                    "id": {
+                                                        "type": "integer"
+                                                    },
+                                                    "name": {
+                                                        "type": "string"
+                                                    },
+                                                    "profile_image": {
+                                                        "type": "string"
+                                                    },
+                                                    "statuses": {
+                                                        "type": "array",
+                                                        "items": {
+                                                            "properties": {
+                                                                "id": {
+                                                                    "type": "integer"
+                                                                },
+                                                                "type": {
+                                                                    "type": "string",
+                                                                    "enum": [
+                                                                        "text",
+                                                                        "image",
+                                                                        "video"
+                                                                    ]
+                                                                },
+                                                                "content": {
+                                                                    "type": "string"
+                                                                },
+                                                                "background_color": {
+                                                                    "type": "string"
+                                                                },
+                                                                "tagged_user": {
+                                                                    "type": "object",
+                                                                    "nullable": true
+                                                                }
+                                                            },
+                                                            "type": "object"
+                                                        }
+                                                    }
+                                                },
+                                                "type": "object"
+                                            }
+                                        }
+                                    },
+                                    "type": "object"
+                                }
+                            }
+                        }
                     }
                 },
                 "security": [

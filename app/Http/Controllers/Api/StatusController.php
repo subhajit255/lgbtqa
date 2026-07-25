@@ -3,6 +3,7 @@
 namespace App\Http\Controllers\Api;
 
 use App\Http\Controllers\Controller;
+use App\Models\CommunityMember;
 use App\Models\Status;
 use App\Models\StatusReaction;
 use App\Models\StatusComment;
@@ -61,8 +62,8 @@ class StatusController extends Controller
 
         $paginatedUsers = $query->paginate($perPage, ['*'], 'page_number', $page);
 
-        $paginatedUsers->through(function($user) {
-            $user->statuses->map(function($status) {
+        $paginatedUsers->through(function ($user) {
+            $user->statuses->map(function ($status) {
                 if (in_array($status->type, ['image', 'video']) && $status->content) {
                     $status->content = asset('storage/' . $status->content);
                 }
@@ -354,7 +355,7 @@ class StatusController extends Controller
 
         $statusesPaginator = $user->statuses()->active()->with('taggedUser')->latest()->paginate($perPage, ['*'], 'page_number', $page);
 
-        $statusesPaginator->through(function($status) {
+        $statusesPaginator->through(function ($status) {
             if (in_array($status->type, ['image', 'video']) && $status->content) {
                 $status->content = asset('storage/' . $status->content);
             }
@@ -367,5 +368,87 @@ class StatusController extends Controller
             'User statuses retrieved successfully',
             $statusesPaginator
         );
+    }
+
+    /**
+     * @OA\Get(
+     *     path="/api/statuses/same-communities-statuses",
+     *     summary="Get active statuses of users who are members of my communities",
+     *     tags={"Statuses (Stories)"},
+     *     security={{"bearerAuth":{}}},
+     *     @OA\Response(
+     *         response=200,
+     *         description="Statuses retrieved successfully",
+     *         @OA\JsonContent(
+     *             @OA\Property(property="status", type="boolean", example=true),
+     *             @OA\Property(property="message", type="string", example="Statuses retrieved successfully"),
+     *             @OA\Property(property="data", type="array",
+     *                 @OA\Items(
+     *                     type="object",
+     *                     @OA\Property(property="id", type="integer"),
+     *                     @OA\Property(property="name", type="string"),
+     *                     @OA\Property(property="profile_image", type="string"),
+     *                     @OA\Property(property="statuses", type="array",
+     *                         @OA\Items(
+     *                             type="object",
+     *                             @OA\Property(property="id", type="integer"),
+     *                             @OA\Property(property="type", type="string", enum={"text", "image", "video"}),
+     *                             @OA\Property(property="content", type="string"),
+     *                             @OA\Property(property="background_color", type="string"),
+     *                             @OA\Property(property="tagged_user", type="object", nullable=true)
+     *                         )
+     *                     )
+     *                 )
+     *             )
+     *         )
+     *     )
+     * )
+     */
+    public function statusOfSameCommunitiesMembers(Request $request)
+    {
+        try {
+            $perPage = $request->input('per_page') ?? 10;
+            $page = $request->input('page_number') ?? $request->input('page_no') ?? $request->input('page') ?? 1;
+
+            // find my joined communities
+            $communities = CommunityMember::where(['user_id' => auth()->user()->id, 'status' => 'active'])->pluck('community_id')->toArray();
+
+            // get all active statuses of users who are members of my communities
+            $community_users = CommunityMember::whereIn('community_id', $communities)->pluck('user_id')->toArray();
+
+            // fetch statuses of those users grouped by user
+            $query = User::whereIn('id', $community_users)
+                ->whereHas('statuses', function ($query) {
+                    $query->active();
+                })->with(['statuses' => function ($query) {
+                    $query->active()->with('taggedUser')->latest();
+                }]);
+
+            $paginatedUsers = $query->paginate($perPage, ['*'], 'page_number', $page);
+
+            $paginatedUsers->through(function ($user) {
+                $user->statuses->map(function ($status) {
+                    if (in_array($status->type, ['image', 'video']) && $status->content) {
+                        $status->content = asset('storage/' . $status->content);
+                    }
+                    return $status;
+                });
+                return $user;
+            });
+
+            return $this->responseJsonPaginated(
+                true,
+                200,
+                'Statuses retrieved successfully',
+                $paginatedUsers
+            );
+        } catch (\Exception $th) {
+            $status = false;
+            $code = 500;
+            $response = errorLogAndReturn($th);
+            $message = config('constants.CATCH_ERROR_MSG');
+
+            return $this->responseJson($status, $code, $message, $response);
+        }
     }
 }

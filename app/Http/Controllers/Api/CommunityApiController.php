@@ -187,6 +187,8 @@ class CommunityApiController extends Controller
             ], 404);
         }
 
+        $community->increment('view_count');
+
         $community->members_count = $community->members()->where('status', 'active')->count();
 
         $membership = $community->members()->where('user_id', $userId)->first();
@@ -812,5 +814,29 @@ class CommunityApiController extends Controller
             'status' => true,
             'message' => 'Join request rejected successfully.'
         ]);
+    }
+    /**
+     * @OA\Get(
+     *     path="/api/communities/trending",
+     *     summary="Get list of trending communities",
+     *     tags={"Communities"},
+     *     security={{"bearerAuth":{}}},
+     *     @OA\Response(
+     *         response=200,
+     *         description="Communities retrieved successfully"
+     *     )
+     * )
+     */
+    public function trendingCommunities(Request $request)
+    {
+        $communities = Community::query()->where('is_active', 1)
+            ->withCount('activeMembers')
+            ->with('creator')
+            // Score = (View Velocity * 0.4) + (Total Views * 0.3) + (Active Members * 0.3)
+            // View Velocity = view_count / days_since_created
+            ->orderByRaw('((view_count / (DATEDIFF(NOW(), created_at) + 1)) * 0.4) + (view_count * 0.3) + (active_members_count * 0.3) DESC')
+            ->take(10)
+            ->get();
+        return $this->responseJson(true, 200, 'Trending communities retrieved successfully', $communities);
     }
 }

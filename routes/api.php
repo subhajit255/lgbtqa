@@ -1,22 +1,30 @@
 <?php
 
+use \App\Http\Controllers\Api\CommunityApiController;
+use \App\Http\Controllers\Api\EventApiController;
+use \App\Http\Controllers\Api\NotificationController;
+use \App\Http\Controllers\Api\SearchController;
+use App\Http\Controllers\Api\AppSettingToggleController;
+use App\Http\Controllers\Api\AudienceVisibilityController;
 use App\Http\Controllers\Api\AuthController;
+use App\Http\Controllers\Api\BadgeController;
+use App\Http\Controllers\Api\BlockController;
+use App\Http\Controllers\Api\BugController;
 use App\Http\Controllers\Api\ChatController;
 use App\Http\Controllers\Api\ChatMessageController;
+use App\Http\Controllers\Api\FriendController;
 use App\Http\Controllers\Api\GroupApiController;
 use App\Http\Controllers\Api\HobbyController;
+use App\Http\Controllers\Api\KycController;
 use App\Http\Controllers\Api\PostController;
 use App\Http\Controllers\Api\PostEngagementController;
 use App\Http\Controllers\Api\StatusController;
 use App\Http\Controllers\Api\UserController;
-use App\Http\Controllers\Api\BadgeController;
-use App\Http\Controllers\Api\FriendController;
-use App\Http\Controllers\Api\BlockController;
-use App\Http\Controllers\Api\KycController;
-use App\Http\Controllers\Api\BugController;
-use App\Http\Controllers\Api\AppSettingToggleController;
-use App\Http\Controllers\Api\AudienceVisibilityController;
 use Illuminate\Support\Facades\Route;
+
+
+
+
 
 /*
 |--------------------------------------------------------------------------
@@ -134,6 +142,7 @@ Route::middleware(['auth:api', \App\Http\Middleware\UpdateUserLastActivity::clas
         Route::post('/{status}/comments', 'addComment');
         Route::get('/{status}/comments', 'getComments');
         Route::get('/user/{user}', 'userStatuses');
+        Route::get('/same-communities-statuses', 'statusOfSameCommunitiesMembers');
     });
 
     // Friend Routes
@@ -161,7 +170,7 @@ Route::middleware(['auth:api', \App\Http\Middleware\UpdateUserLastActivity::clas
     Route::post('/audience-visibility', [AudienceVisibilityController::class, 'update']);
 
     // Event Routes
-    Route::controller(\App\Http\Controllers\Api\EventApiController::class)->prefix('events')->group(function () {
+    Route::controller(EventApiController::class)->prefix('events')->group(function () {
         Route::get('/', 'index');
         Route::post('/create', 'store');
         Route::get('/{uuid}', 'show');
@@ -172,9 +181,10 @@ Route::middleware(['auth:api', \App\Http\Middleware\UpdateUserLastActivity::clas
     });
 
     // Community Routes
-    Route::controller(\App\Http\Controllers\Api\CommunityApiController::class)->prefix('communities')->group(function () {
+    Route::controller(CommunityApiController::class)->prefix('communities')->group(function () {
         Route::get('/', 'index');
         Route::get('/community-hubs', 'communityHubs');
+        Route::get('/trending', 'trendingCommunities');
         Route::post('/create', 'store');
         Route::get('/{uuid}', 'show');
         Route::post('/update/{uuid}', 'update');
@@ -187,12 +197,12 @@ Route::middleware(['auth:api', \App\Http\Middleware\UpdateUserLastActivity::clas
     });
 
     // Notification Routes
-    Route::controller(\App\Http\Controllers\Api\NotificationController::class)->prefix('notifications')->group(function () {
+    Route::controller(NotificationController::class)->prefix('notifications')->group(function () {
         Route::get('/', 'index');
         Route::post('/{id}/read', 'markAsRead');
         Route::post('/read-all', 'markAllAsRead');
     });
 
     // Global Search Route
-    Route::get('/search', [\App\Http\Controllers\Api\SearchController::class, 'search'])->name('global.search');
+    Route::get('/search', [SearchController::class, 'search'])->name('global.search');
 });
