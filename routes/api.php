@@ -20,6 +20,7 @@ use App\Http\Controllers\Api\PostController;
 use App\Http\Controllers\Api\PostEngagementController;
 use App\Http\Controllers\Api\StatusController;
 use App\Http\Controllers\Api\UserController;
+use App\Http\Controllers\Api\UserGeoMapController;
 use Illuminate\Support\Facades\Route;
 
 
@@ -205,4 +206,15 @@ Route::middleware(['auth:api', \App\Http\Middleware\UpdateUserLastActivity::clas
 
     // Global Search Route
     Route::get('/search', [SearchController::class, 'search'])->name('global.search');
+
+    // Map Routes
+    Route::controller(UserGeoMapController::class)->prefix('map')->group(function () {
+        Route::post('/location', 'addOrUpdateCurrentLocation');
+        Route::get('/users', 'getUsersOnMap');
+        Route::get('/suggested-searches', 'getSuggestedSearches');
+        Route::get('/recent', 'getRecentSearches');
+        Route::post('/recent', 'addRecentSearch');
+        Route::delete('/recent/clear', 'clearRecentSearches');
+        Route::delete('/recent/{id}', 'deleteRecentSearch');
+    });
 });

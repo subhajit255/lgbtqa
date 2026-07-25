@@ -7111,6 +7111,355 @@
                     }
                 ]
             }
+        },
+        "/api/map/location": {
+            "post": {
+                "tags": [
+                    "Map"
+                ],
+                "summary": "Add or update current GPS location of authenticated user",
+                "operationId": "7f89e41459a082a4a4c391b090e05e9f",
+                "requestBody": {
+                    "required": true,
+                    "content": {
+                        "application/json": {
+                            "schema": {
+                                "required": [
+                                    "latitude",
+                                    "longitude"
+                                ],
+                                "properties": {
+                                    "latitude": {
+                                        "description": "Latitude coordinate",
+                                        "type": "number",
+                                        "format": "float",
+                                        "example": 40.7128
+                                    },
+                                    "longitude": {
+                                        "description": "Longitude coordinate",
+                                        "type": "number",
+                                        "format": "float",
+                                        "example": -74.006
+                                    },
+                                    "lat": {
+                                        "description": "Alias for latitude",
+                                        "type": "number",
+                                        "format": "float",
+                                        "example": 40.7128
+                                    },
+                                    "lng": {
+                                        "description": "Alias for longitude",
+                                        "type": "number",
+                                        "format": "float",
+                                        "example": -74.006
+                                    }
+                                },
+                                "type": "object"
+                            }
+                        }
+                    }
+                },
+                "responses": {
+                    "200": {
+                        "description": "Location updated successfully"
+                    },
+                    "400": {
+                        "description": "Validation error"
+                    },
+                    "401": {
+                        "description": "Unauthorized"
+                    }
+                },
+                "security": [
+                    {
+                        "bearerAuth": []
+                    }
+                ]
+            }
+        },
+        "/api/map/users": {
+            "get": {
+                "tags": [
+                    "Map"
+                ],
+                "summary": "Get users on the map based on filters and proximity",
+                "operationId": "5c4be4fcff433e82e7d18da4e1469f27",
+                "parameters": [
+                    {
+                        "name": "latitude",
+                        "in": "query",
+                        "description": "Latitude of center point",
+                        "required": false,
+                        "schema": {
+                            "type": "number",
+                            "format": "float"
+                        }
+                    },
+                    {
+                        "name": "longitude",
+                        "in": "query",
+                        "description": "Longitude of center point",
+                        "required": false,
+                        "schema": {
+                            "type": "number",
+                            "format": "float"
+                        }
+                    },
+                    {
+                        "name": "max_distance",
+                        "in": "query",
+                        "description": "Maximum distance in miles",
+                        "required": false,
+                        "schema": {
+                            "type": "integer",
+                            "default": 50
+                        }
+                    },
+                    {
+                        "name": "audience",
+                        "in": "query",
+                        "description": "Filter by audience connection type",
+                        "required": false,
+                        "schema": {
+                            "type": "string",
+                            "default": "all",
+                            "enum": [
+                                "all",
+                                "connections",
+                                "connections_of_friends"
+                            ]
+                        }
+                    },
+                    {
+                        "name": "gender",
+                        "in": "query",
+                        "description": "Filter by gender identities",
+                        "required": false,
+                        "schema": {
+                            "type": "array",
+                            "items": {
+                                "type": "integer"
+                            }
+                        }
+                    },
+                    {
+                        "name": "hobbies",
+                        "in": "query",
+                        "description": "Filter by hobby item IDs",
+                        "required": false,
+                        "schema": {
+                            "type": "array",
+                            "items": {
+                                "type": "integer"
+                            }
+                        }
+                    },
+                    {
+                        "name": "age_min",
+                        "in": "query",
+                        "description": "Minimum age filter",
+                        "required": false,
+                        "schema": {
+                            "type": "integer",
+                            "default": 18
+                        }
+                    },
+                    {
+                        "name": "age_max",
+                        "in": "query",
+                        "description": "Maximum age filter",
+                        "required": false,
+                        "schema": {
+                            "type": "integer",
+                            "default": 100
+                        }
+                    },
+                    {
+                        "name": "verified_only",
+                        "in": "query",
+                        "description": "Filter only verified profiles",
+                        "required": false,
+                        "schema": {
+                            "type": "boolean"
+                        }
+                    },
+                    {
+                        "name": "preset",
+                        "in": "query",
+                        "description": "Suggested search preset filter",
+                        "required": false,
+                        "schema": {
+                            "type": "string",
+                            "enum": [
+                                "new_members",
+                                "now_online",
+                                "recently_online",
+                                "updated_recently",
+                                "verified_profiles",
+                                "popular_nearby",
+                                "connections"
+                            ]
+                        }
+                    },
+                    {
+                        "name": "per_page",
+                        "in": "query",
+                        "description": "Items per page",
+                        "required": false,
+                        "schema": {
+                            "type": "integer",
+                            "default": 20
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "Users retrieved successfully"
+                    }
+                },
+                "security": [
+                    {
+                        "bearerAuth": []
+                    }
+                ]
+            }
+        },
+        "/api/map/suggested-searches": {
+            "get": {
+                "tags": [
+                    "Map"
+                ],
+                "summary": "Get list of suggested search preset cards",
+                "operationId": "d8b6bea51f0183398e7dcd74549f1441",
+                "responses": {
+                    "200": {
+                        "description": "Suggested searches retrieved successfully"
+                    }
+                },
+                "security": [
+                    {
+                        "bearerAuth": []
+                    }
+                ]
+            }
+        },
+        "/api/map/recent": {
+            "get": {
+                "tags": [
+                    "Map"
+                ],
+                "summary": "Get list of recent search items for the authenticated user",
+                "operationId": "c60146e7a16819a85aacebd4263c781e",
+                "responses": {
+                    "200": {
+                        "description": "Recent searches retrieved successfully"
+                    }
+                },
+                "security": [
+                    {
+                        "bearerAuth": []
+                    }
+                ]
+            },
+            "post": {
+                "tags": [
+                    "Map"
+                ],
+                "summary": "Add or update a recent search item",
+                "operationId": "50b9f7b51551fa1936287ee18a61b881",
+                "requestBody": {
+                    "required": true,
+                    "content": {
+                        "application/json": {
+                            "schema": {
+                                "required": [
+                                    "item_type"
+                                ],
+                                "properties": {
+                                    "item_type": {
+                                        "type": "string",
+                                        "enum": [
+                                            "keyword",
+                                            "user",
+                                            "event",
+                                            "place",
+                                            "filter_preset"
+                                        ]
+                                    },
+                                    "query_text": {
+                                        "type": "string"
+                                    },
+                                    "target_id": {
+                                        "type": "integer"
+                                    },
+                                    "metadata": {
+                                        "type": "object"
+                                    }
+                                },
+                                "type": "object"
+                            }
+                        }
+                    }
+                },
+                "responses": {
+                    "200": {
+                        "description": "Recent search added successfully"
+                    }
+                },
+                "security": [
+                    {
+                        "bearerAuth": []
+                    }
+                ]
+            }
+        },
+        "/api/map/recent/clear": {
+            "delete": {
+                "tags": [
+                    "Map"
+                ],
+                "summary": "Clear all recent search history",
+                "operationId": "f0eec6280d6d00dbd78ba52546a45c66",
+                "responses": {
+                    "200": {
+                        "description": "Recent searches cleared successfully"
+                    }
+                },
+                "security": [
+                    {
+                        "bearerAuth": []
+                    }
+                ]
+            }
+        },
+        "/api/map/recent/{id}": {
+            "delete": {
+                "tags": [
+                    "Map"
+                ],
+                "summary": "Delete a single recent search item",
+                "operationId": "0432608785f604fd4fc74b60f6642300",
+                "parameters": [
+                    {
+                        "name": "id",
+                        "in": "path",
+                        "required": true,
+                        "schema": {
+                            "type": "integer"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "Recent search item deleted successfully"
+                    }
+                },
+                "security": [
+                    {
+                        "bearerAuth": []
+                    }
+                ]
+            }
         }
     },
     "components": {
@@ -7219,6 +7568,10 @@
         {
             "name": "Statuses (Stories)",
             "description": "Statuses (Stories)"
+        },
+        {
+            "name": "Map",
+            "description": "Map"
         }
     ]
 }
