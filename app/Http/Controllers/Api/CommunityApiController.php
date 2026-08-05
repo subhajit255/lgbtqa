@@ -921,7 +921,7 @@ class CommunityApiController extends Controller
      *     )
      * )
      */
-    public function addMembers(Request $request, $id)
+    public function addMembers(Request $request, $uuid)
     {
         try {
             $request->validate([
@@ -929,7 +929,7 @@ class CommunityApiController extends Controller
                 'user_ids.*' => 'exists:users,id',
             ]);
 
-            $community = Community::find($id);
+            $community = Community::where('uuid', $uuid)->first();
             if (!$community) {
                 return $this->responseJson(false, 404, 'Community not found');
             }
