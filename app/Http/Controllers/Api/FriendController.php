@@ -42,9 +42,9 @@ class FriendController extends BaseController
         }
 
         // Check if request already exists
-        $existingRequest = FriendRequest::where(function($query) use ($user, $user_id) {
+        $existingRequest = FriendRequest::query()->where(function ($query) use ($user, $user_id) {
             $query->where('user_id', $user->id)->where('friend_id', $user_id);
-        })->orWhere(function($query) use ($user, $user_id) {
+        })->orWhere(function ($query) use ($user, $user_id) {
             $query->where('user_id', $user_id)->where('friend_id', $user->id);
         })->first();
 
@@ -147,5 +147,90 @@ class FriendController extends BaseController
         $friendRequest->save();
 
         return $this->responseJson(true, 200, 'Friend request rejected.', []);
+    }
+    /**
+     * @OA\Get(
+     *     path="/api/friends/my-friends",
+     *     summary="Get list of accepted friends with optional search by name",
+     *     tags={"Friends"},
+     *     security={{"bearerAuth": {}}},
+     *     @OA\Parameter(
+     *         name="search",
+     *         in="query",
+     *         description="Search friends by name, username, or profile display name",
+     *         required=false,
+     *         @OA\Schema(type="string")
+     *     ),
+     *     @OA\Parameter(
+     *         name="per_page",
+     *         in="query",
+     *         description="Number of results per page (default: 10)",
+     *         required=false,
+     *         @OA\Schema(type="integer", default=10)
+     *     ),
+     *     @OA\Parameter(
+     *         name="page_number",
+     *         in="query",
+     *         description="Page number (default: 1)",
+     *         required=false,
+     *         @OA\Schema(type="integer", default=1)
+     *     ),
+     *     @OA\Response(response=200, description="My friends fetched successfully."),
+     *     @OA\Response(response=500, description="Something went wrong")
+     * )
+     */
+    public function myFriends(Request $request)
+    {
+        try {
+            $user = Auth::user();
+            $perPage = $request->input('per_page') ?? 10;
+            $page = $request->input('page_number') ?? $request->input('page_no') ?? $request->input('page') ?? 1;
+
+            // Eager load sender and receiver profiles
+            $query = FriendRequest::with(['sender.profile', 'receiver.profile'])
+                ->where('status', 'accepted')
+                ->where(function ($q) use ($user) {
+                    $q->where('user_id', $user->id)->orWhere('friend_id', $user->id);
+                });
+
+            // Keyword / Name search
+            $search = $request->input('search') ?? $request->input('name') ?? $request->input('keyword');
+            if (!empty($search)) {
+                $query->where(function ($q) use ($user, $search) {
+                    // If current user is sender, search in receiver's name/username/profile
+                    $q->where(function ($sub) use ($user, $search) {
+                        $sub->where('user_id', $user->id)
+                            ->whereHas('receiver', function ($uq) use ($search) {
+                                $uq->where('name', 'like', '%' . $search . '%')
+                                    ->orWhere('username', 'like', '%' . $search . '%')
+                                    ->orWhereHas('profile', function ($pq) use ($search) {
+                                        $pq->where('display_name', 'like', '%' . $search . '%')
+                                            ->orWhere('first_name', 'like', '%' . $search . '%')
+                                            ->orWhere('last_name', 'like', '%' . $search . '%');
+                                    });
+                            });
+                    })
+                        // If current user is receiver, search in sender's name/username/profile
+                        ->orWhere(function ($sub) use ($user, $search) {
+                            $sub->where('friend_id', $user->id)
+                                ->whereHas('sender', function ($uq) use ($search) {
+                                    $uq->where('name', 'like', '%' . $search . '%')
+                                        ->orWhere('username', 'like', '%' . $search . '%')
+                                        ->orWhereHas('profile', function ($pq) use ($search) {
+                                            $pq->where('display_name', 'like', '%' . $search . '%')
+                                                ->orWhere('first_name', 'like', '%' . $search . '%')
+                                                ->orWhere('last_name', 'like', '%' . $search . '%');
+                                        });
+                                });
+                        });
+                });
+            }
+
+            $friends = $query->paginate($perPage, ['*'], 'page_number', $page);
+            return $this->responseJsonPaginated(true, 200, 'My friends fetched successfully.', $friends);
+        } catch (\Exception $e) {
+            logger($e->getMessage() . '-' . $e->getLine() . '-' . $e->getFile());
+            return $this->responseJson(false, 500, 'Something went wrong');
+        }
     }
 }

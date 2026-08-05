@@ -4351,6 +4351,59 @@
                 ]
             }
         },
+        "/api/friends/my-friends": {
+            "get": {
+                "tags": [
+                    "Friends"
+                ],
+                "summary": "Get list of accepted friends with optional search by name",
+                "operationId": "257ce3ce53a8e7cf61b5f915fc44a228",
+                "parameters": [
+                    {
+                        "name": "search",
+                        "in": "query",
+                        "description": "Search friends by name, username, or profile display name",
+                        "required": false,
+                        "schema": {
+                            "type": "string"
+                        }
+                    },
+                    {
+                        "name": "per_page",
+                        "in": "query",
+                        "description": "Number of results per page (default: 10)",
+                        "required": false,
+                        "schema": {
+                            "type": "integer",
+                            "default": 10
+                        }
+                    },
+                    {
+                        "name": "page_number",
+                        "in": "query",
+                        "description": "Page number (default: 1)",
+                        "required": false,
+                        "schema": {
+                            "type": "integer",
+                            "default": 1
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "My friends fetched successfully."
+                    },
+                    "500": {
+                        "description": "Something went wrong"
+                    }
+                },
+                "security": [
+                    {
+                        "bearerAuth": []
+                    }
+                ]
+            }
+        },
         "/api/groups/discover": {
             "get": {
                 "tags": [
@@ -7140,18 +7193,6 @@
                                         "type": "number",
                                         "format": "float",
                                         "example": -74.006
-                                    },
-                                    "lat": {
-                                        "description": "Alias for latitude",
-                                        "type": "number",
-                                        "format": "float",
-                                        "example": 40.7128
-                                    },
-                                    "lng": {
-                                        "description": "Alias for longitude",
-                                        "type": "number",
-                                        "format": "float",
-                                        "example": -74.006
                                     }
                                 },
                                 "type": "object"
@@ -7452,6 +7493,42 @@
                 "responses": {
                     "200": {
                         "description": "Recent search item deleted successfully"
+                    }
+                },
+                "security": [
+                    {
+                        "bearerAuth": []
+                    }
+                ]
+            }
+        },
+        "/api/map/favourite/{user_id}": {
+            "post": {
+                "tags": [
+                    "Map"
+                ],
+                "summary": "Toggle favourite status of a user",
+                "operationId": "50654c20c77bc96850be1b4f7a11743a",
+                "parameters": [
+                    {
+                        "name": "user_id",
+                        "in": "path",
+                        "description": "ID of the user to toggle favourite status",
+                        "required": true,
+                        "schema": {
+                            "type": "integer"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "User added or removed from favourites"
+                    },
+                    "404": {
+                        "description": "User not found"
+                    },
+                    "500": {
+                        "description": "Something went wrong"
                     }
                 },
                 "security": [

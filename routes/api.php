@@ -148,6 +148,7 @@ Route::middleware(['auth:api', \App\Http\Middleware\UpdateUserLastActivity::clas
 
     // Friend Routes
     Route::controller(FriendController::class)->prefix('friends')->group(function () {
+        Route::get('/my-friends', 'myFriends');
         Route::post('/request/{user_id}', 'sendRequest');
         Route::get('/requests', 'viewRequests');
         Route::post('/accept/{request_id}', 'acceptRequest');
@@ -187,11 +188,13 @@ Route::middleware(['auth:api', \App\Http\Middleware\UpdateUserLastActivity::clas
         Route::get('/community-hubs', 'communityHubs');
         Route::get('/trending', 'trendingCommunities');
         Route::post('/create', 'store');
+        Route::get('/members-list', 'membersList');
         Route::get('/{uuid}', 'show');
         Route::post('/update/{uuid}', 'update');
         Route::delete('/delete/{uuid}', 'destroy');
         Route::post('/{uuid}/join', 'join');
         Route::post('/{uuid}/leave', 'leave');
+        Route::post('/{uuid}/add-members', 'addMembers');
         Route::get('/{uuid}/requests', 'listRequests');
         Route::post('/requests/{id}/approve', 'approveRequest');
         Route::post('/requests/{id}/reject', 'rejectRequest');
@@ -216,5 +219,6 @@ Route::middleware(['auth:api', \App\Http\Middleware\UpdateUserLastActivity::clas
         Route::post('/recent', 'addRecentSearch');
         Route::delete('/recent/clear', 'clearRecentSearches');
         Route::delete('/recent/{id}', 'deleteRecentSearch');
+        Route::post('/favourite/{user_id}', 'toggleFavourite');
     });
 });

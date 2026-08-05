@@ -3,11 +3,12 @@
 namespace App\Http\Controllers\Api;
 
 use App\Http\Controllers\BaseController;
-use Illuminate\Http\Request;
-
 use App\Models\User;
+
+use App\Models\UserFavouriteProfile;
 use App\Models\UserLocation;
 use App\Models\UserRecentSearch;
+use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Validator;
 
@@ -24,9 +25,7 @@ class UserGeoMapController extends BaseController
      *         @OA\JsonContent(
      *             required={"latitude", "longitude"},
      *             @OA\Property(property="latitude", type="number", format="float", example=40.7128, description="Latitude coordinate"),
-     *             @OA\Property(property="longitude", type="number", format="float", example=-74.0060, description="Longitude coordinate"),
-     *             @OA\Property(property="lat", type="number", format="float", example=40.7128, description="Alias for latitude"),
-     *             @OA\Property(property="lng", type="number", format="float", example=-74.0060, description="Alias for longitude")
+     *             @OA\Property(property="longitude", type="number", format="float", example=-74.0060, description="Longitude coordinate")
      *         )
      *     ),
      *     @OA\Response(
@@ -50,9 +49,7 @@ class UserGeoMapController extends BaseController
 
         $request->merge([
             'lat' => $lat,
-            'lng' => $lng,
-            'latitude' => $lat,
-            'longitude' => $lng,
+            'lng' => $lng
         ]);
 
         $validator = Validator::make($request->all(), [
@@ -321,7 +318,7 @@ class UserGeoMapController extends BaseController
             return $this->responseJson(false, 401, 'Unauthorized');
         }
 
-        $recents = UserRecentSearch::where('user_id', $user->id)
+        $recents = UserRecentSearch::query()->where('user_id', $user->id)
             ->with(['targetUser.profile', 'targetEvent'])
             ->orderBy('updated_at', 'desc')
             ->take(15)
@@ -407,7 +404,7 @@ class UserGeoMapController extends BaseController
             return $this->responseJson(false, 401, 'Unauthorized');
         }
 
-        UserRecentSearch::where('user_id', $user->id)->delete();
+        UserRecentSearch::query()->where('user_id', $user->id)->delete();
 
         return $this->responseJson(true, 200, 'All recent searches cleared successfully');
     }
@@ -429,7 +426,7 @@ class UserGeoMapController extends BaseController
             return $this->responseJson(false, 401, 'Unauthorized');
         }
 
-        $item = UserRecentSearch::where('user_id', $user->id)->where('id', $id)->first();
+        $item = UserRecentSearch::query()->where('user_id', $user->id)->where('id', $id)->first();
         if (!$item) {
             return $this->responseJson(false, 404, 'Recent search item not found');
         }
@@ -437,5 +434,41 @@ class UserGeoMapController extends BaseController
         $item->delete();
 
         return $this->responseJson(true, 200, 'Recent search item deleted successfully');
+    }
+
+    /**
+     * @OA\Post(
+     *     path="/api/map/favourite/{user_id}",
+     *     summary="Toggle favourite status of a user",
+     *     tags={"Map"},
+     *     security={{"bearerAuth":{}}},
+     *     @OA\Parameter(name="user_id", in="path", required=true, description="ID of the user to toggle favourite status", @OA\Schema(type="integer")),
+     *     @OA\Response(response=200, description="User added or removed from favourites"),
+     *     @OA\Response(response=404, description="User not found"),
+     *     @OA\Response(response=500, description="Something went wrong")
+     * )
+     */
+    public function toggleFavourite($userId)
+    {
+        try {
+            $user = User::find($userId);
+            if (!$user) {
+                return $this->responseJson(false, 404, 'User not found');
+            }
+            $favouriteUser = UserFavouriteProfile::query()->where('user_id', auth()->user()->id)->where('favourite_user_id', $userId)->first();
+            if ($favouriteUser) {
+                $favouriteUser->delete();
+                return $this->responseJson(true, 200, 'User removed from favourites');
+            } else {
+                UserFavouriteProfile::create([
+                    'user_id' => auth()->user()->id,
+                    'favourite_user_id' => $userId,
+                ]);
+                return $this->responseJson(true, 200, 'User added into favouritespapi');
+            }
+        } catch (\Exception $e) {
+            logger($e->getMessage() . '-' . $e->getLine() . '-' . $e->getFile());
+            return $this->responseJson(false, 500, 'Something went wrong');
+        }
     }
 }

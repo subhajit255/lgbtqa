@@ -10,6 +10,7 @@ use App\Models\CommunityHub;
 use App\Models\CommunityMember;
 use App\Models\Notification;
 use App\Models\User;
+use App\Http\Resources\Api\User\UserResource;
 use App\Traits\UploadAble;
 use Exception;
 use Illuminate\Http\Request;
@@ -803,7 +804,7 @@ class CommunityApiController extends Controller
         }
 
         if ($member->community->chat) {
-            \App\Models\ChatParticipant::where('chat_id', $member->community->chat->id)
+            ChatParticipant::where('chat_id', $member->community->chat->id)
                 ->where('user_id', $member->user_id)
                 ->delete();
         }
@@ -838,5 +839,133 @@ class CommunityApiController extends Controller
             ->take(10)
             ->get();
         return $this->responseJson(true, 200, 'Trending communities retrieved successfully', $communities);
+    }
+    /**
+     * @OA\Get(
+     *     path="/api/communities/members-list",
+     *     summary="Get list of community members",
+     *     tags={"Communities"},
+     *     security={{"bearerAuth":{}}},
+     *     @OA\Parameter(
+     *         name="search",
+     *         in="query",
+     *         description="Search members by name",
+     *         required=false,
+     *         @OA\Schema(type="string")
+     *     ),
+     *     @OA\Response(
+     *         response=200,
+     *         description="Members list retrieved successfully"
+     *     ),
+     *     @OA\Response(
+     *         response=500,
+     *         description="Something went wrong"
+     *     )
+     * )
+     */
+    public function membersList(Request $request)
+    {
+        try {
+            $query = User::query()->where(['user_type' => 3])->where('id', '!=', auth()->id())
+                ->where('is_active', 1);
+
+            if ($request->has('search') && !empty($request->search)) {
+                $query->where('name', 'like', '%' . $request->search . '%');
+            }
+
+            $members = $query->get();
+
+            return $this->responseJson(true, 200, 'Members list retrieved successfully', UserResource::collection($members));
+        } catch (\Exception $e) {
+            logger($e->getMessage() . '---' . $e->getLine() . '---' . $e->getFile());
+            return $this->responseJson(false, 500, 'Something went wrong', $e->getMessage());
+        }
+    }
+
+    /**
+     * @OA\Post(
+     *     path="/api/communities/{uuid}/add-members",
+     *     summary="Add members to a community",
+     *     tags={"Communities"},
+     *     security={{"bearerAuth":{}}},
+     *     @OA\Parameter(
+     *         name="uuid",
+     *         in="path",
+     *         description="Community UUID",
+     *         required=true,
+     *         @OA\Schema(type="string")
+     *     ),
+     *     @OA\RequestBody(
+     *         required=true,
+     *         @OA\JsonContent(
+     *             required={"user_ids"},
+     *             @OA\Property(
+     *                 property="user_ids",
+     *                 type="array",
+     *                 @OA\Items(type="integer"),
+     *                 description="Array of User IDs to add to the community"
+     *             )
+     *         )
+     *     ),
+     *     @OA\Response(
+     *         response=200,
+     *         description="Members added successfully"
+     *     ),
+     *     @OA\Response(
+     *         response=404,
+     *         description="Community not found"
+     *     ),
+     *     @OA\Response(
+     *         response=500,
+     *         description="Something went wrong"
+     *     )
+     * )
+     */
+    public function addMembers(Request $request, $id)
+    {
+        try {
+            $request->validate([
+                'user_ids' => 'required|array',
+                'user_ids.*' => 'exists:users,id',
+            ]);
+
+            $community = Community::find($id);
+            if (!$community) {
+                return $this->responseJson(false, 404, 'Community not found');
+            }
+
+            $addedMembers = [];
+
+            foreach ($request->user_ids as $userId) {
+                $exists = CommunityMember::where('community_id', $community->id)
+                    ->where('user_id', $userId)
+                    ->exists();
+
+                if (!$exists) {
+                    CommunityMember::create([
+                        'community_id' => $community->id,
+                        'user_id' => $userId,
+                        'status' => 'active',
+                        'role' => 'member'
+                    ]);
+
+                    if ($community->chat) {
+                        ChatParticipant::firstOrCreate([
+                            'chat_id' => $community->chat->id,
+                            'user_id' => $userId,
+                        ], [
+                            'role' => 'member'
+                        ]);
+                    }
+
+                    $addedMembers[] = $userId;
+                }
+            }
+
+            return $this->responseJson(true, 200, 'Members added successfully', $addedMembers);
+        } catch (\Exception $e) {
+            logger($e->getMessage() . '---' . $e->getLine() . '---' . $e->getFile());
+            return $this->responseJson(false, 500, 'Something went wrong', $e->getMessage());
+        }
     }
 }
