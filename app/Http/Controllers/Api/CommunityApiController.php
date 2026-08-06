@@ -840,6 +840,110 @@ class CommunityApiController extends Controller
             ->get();
         return $this->responseJson(true, 200, 'Trending communities retrieved successfully', $communities);
     }
+
+    /**
+     * @OA\Get(
+     *     path="/api/communities/suggested-communities",
+     *     summary="Get list of suggested communities based on user preferences",
+     *     tags={"Communities"},
+     *     security={{"bearerAuth":{}}},
+     *     @OA\Response(
+     *         response=200,
+     *         description="Suggested communities retrieved successfully"
+     *     )
+     * )
+     */
+    public function suggestedCommunities(Request $request)
+    {
+        $userId = auth()->id();
+        $user = auth()->user();
+
+        // Start with hobbies
+        $searchTerms = $user->hobbies()->pluck('name')->toArray();
+
+        // Add additional profile preferences if available
+        $profile = $user->profile;
+        if ($profile) {
+            if ($profile->orientation) {
+                $orientationStr = getOrientation()[$profile->orientation] ?? null;
+                if ($orientationStr) {
+                    $searchTerms[] = $orientationStr;
+                }
+            }
+            if ($profile->sex_importance) {
+                $sexImportanceStr = getSexImportance()[$profile->sex_importance] ?? null;
+                if ($sexImportanceStr) {
+                    $searchTerms[] = $sexImportanceStr;
+                }
+            }
+            if ($profile->age_range_min && $profile->age_range_max) {
+                // E.g. search for "18-25" or "18" or "25" in tags/description
+                $searchTerms[] = $profile->age_range_min . '-' . $profile->age_range_max;
+            }
+        }
+
+        // Remove empty strings and duplicates
+        $searchTerms = array_unique(array_filter($searchTerms));
+
+        $query = Community::query()->where('is_active', 1)->where('type', 'public');
+
+        if (!empty($searchTerms)) {
+            $query->where(function ($q) use ($searchTerms) {
+                foreach ($searchTerms as $term) {
+                    $q->orWhere('tags', 'like', '%' . $term . '%')
+                        ->orWhere('name', 'like', '%' . $term . '%')
+                        ->orWhere('description', 'like', '%' . $term . '%');
+                }
+            });
+        }
+
+        // Exclude communities the user is already a member of
+        $joinedCommunityIds = CommunityMember::where('user_id', $userId)
+            ->whereIn('status', ['active', 'pending'])
+            ->pluck('community_id')
+            ->toArray();
+
+        if (!empty($joinedCommunityIds)) {
+            $query->whereNotIn('id', $joinedCommunityIds);
+        }
+
+        $perPage = $request->input('per_page') ?? 10;
+        $page = $request->input('page_number') ?? $request->input('page_no') ?? $request->input('page') ?? 1;
+
+        // Order by a simplified trending score or just latest if no complex sorting needed
+        $communitiesPaginator = $query->with('creator')
+            ->withCount('activeMembers')
+            ->orderByRaw('((view_count / (DATEDIFF(NOW(), created_at) + 1)) * 0.4) + (view_count * 0.3) + (active_members_count * 0.3) DESC')
+            ->paginate($perPage, ['*'], 'page_number', $page);
+
+        // If no suggested communities found, fallback to trending public communities not joined by the user
+        if ($communitiesPaginator->isEmpty() && !empty($searchTerms)) {
+            $fallbackQuery = Community::query()->where('is_active', 1)->where('type', 'public');
+            if (!empty($joinedCommunityIds)) {
+                $fallbackQuery->whereNotIn('id', $joinedCommunityIds);
+            }
+            $communitiesPaginator = $fallbackQuery->with('creator')
+                ->withCount('activeMembers')
+                ->orderByRaw('((view_count / (DATEDIFF(NOW(), created_at) + 1)) * 0.4) + (view_count * 0.3) + (active_members_count * 0.3) DESC')
+                ->paginate($perPage, ['*'], 'page_number', $page);
+        }
+
+        $communitiesPaginator->through(function ($community) {
+            $community->members_count = $community->active_members_count;
+            $community->user_membership_status = null;
+            $community->user_role = null;
+            $community->chat_id = $community->chat ? $community->chat->id : null;
+            return $community;
+        });
+
+        return $this->responseJsonPaginated(
+            true,
+            200,
+            'Suggested communities retrieved successfully',
+            $communitiesPaginator
+        );
+    }
+
     /**
      * @OA\Get(
      *     path="/api/communities/members-list",

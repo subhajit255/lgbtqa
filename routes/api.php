@@ -187,6 +187,7 @@ Route::middleware(['auth:api', \App\Http\Middleware\UpdateUserLastActivity::clas
         Route::get('/', 'index');
         Route::get('/community-hubs', 'communityHubs');
         Route::get('/trending', 'trendingCommunities');
+        Route::get('/suggested-communities', 'suggestedCommunities');
         Route::post('/create', 'store');
         Route::get('/members-list', 'membersList');
         Route::get('/{uuid}', 'show');

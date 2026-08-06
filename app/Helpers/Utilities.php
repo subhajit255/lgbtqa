@@ -175,7 +175,7 @@ if (! function_exists('safe_b64encode')) {
             $posttoken .= $codealphabet[rand(0, $max - 1)];
         }
 
-        $string = $pretoken.$string.$posttoken;
+        $string = $pretoken . $string . $posttoken;
         $data = base64_encode($string);
         $data = str_replace(['+', '/', '='], ['-', '_', ''], $data);
 
@@ -267,11 +267,11 @@ if (! function_exists('countUnReadChatsAdmin')) {
     {
         // Unread chat messages are stored as notifications with type 'chat_message'
         $allUnreadChatCount = \App\Models\Notification::where([
-            'is_read' => 0, 
-            'for' => 1, 
+            'is_read' => 0,
+            'for' => 1,
             'type' => 'chat_message'
         ])->count();
-        
+
         if ($allUnreadChatCount) {
             return $allUnreadChatCount;
         } else {
@@ -315,14 +315,14 @@ if (! function_exists('getLanguageName')) {
                 return $oldLearning[$value];
             }
         }
-        
+
         $languages = getLanguages();
         foreach ($languages as $lang) {
             if (strcasecmp($lang['code'], $value) === 0 || strcasecmp($lang['name'], $value) === 0) {
                 return $lang['name'];
             }
         }
-        
+
         return $value;
     }
 }
@@ -346,7 +346,7 @@ if (! function_exists('getNationalityName')) {
             if (isset($oldNationalities[$value])) {
                 return $oldNationalities[$value];
             }
-            
+
             $newNationalities = getNationalitiesList();
             foreach ($newNationalities as $nat) {
                 if ($nat['id'] == $value) {
@@ -354,7 +354,7 @@ if (! function_exists('getNationalityName')) {
                 }
             }
         }
-        
+
         return $value;
     }
 }
@@ -368,7 +368,7 @@ if (! function_exists('getStates')) {
         $states = $allStates['states'];
 
         if ($countryId !== null) {
-            $states = array_filter($states, fn ($state) => isset($state['country_id']) && $state['country_id'] == $countryId);
+            $states = array_filter($states, fn($state) => isset($state['country_id']) && $state['country_id'] == $countryId);
             // Re-index array if needed
             $states = array_values($states);
         }
@@ -385,7 +385,7 @@ if (! function_exists('getCities')) {
         $cities = $allCities['cities'];
 
         if ($stateId !== null) {
-            $cities = array_filter($cities, fn ($city) => isset($city['state_id']) && $city['state_id'] == $stateId);
+            $cities = array_filter($cities, fn($city) => isset($city['state_id']) && $city['state_id'] == $stateId);
             // Re-index array if needed
             $cities = array_values($cities);
         }
@@ -648,7 +648,7 @@ if (! function_exists('getHobbyItemsByCategory')) {
             $hobby = \App\Models\Hobby::with(['items' => function ($query) {
                 $query->where('is_active', 1);
             }])->where('title', $categoryTitle)->first();
-            
+
             if ($hobby && $hobby->items->count() > 0) {
                 return $hobby->items->pluck('name', 'id')->toArray();
             }
@@ -1088,6 +1088,3 @@ if (! function_exists('getZodiacs')) {
         ];
     }
 }
-
-
-
