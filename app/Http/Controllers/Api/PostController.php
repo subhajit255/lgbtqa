@@ -124,9 +124,17 @@ class PostController extends BaseController
         try {
             $perPage = $request->input('per_page', 15);
 
+            $currentUser = $request->user();
+
             // Fetch posts ordered by created_at descending (recent first)
             $posts = Post::with(['user.profile', 'user.kycVerification', 'media', 'loves', 'comments', 'stars', 'emojis'])
                 ->where('status', 'active')
+                ->whereIn('user_id', function ($q) use ($currentUser) {
+                    $q->select('friend_id')->from('friend_requests')->where('user_id', $currentUser->id)->where('status', 'accepted')
+                        ->union(
+                            $q->newQuery()->select('user_id')->from('friend_requests')->where('friend_id', $currentUser->id)->where('status', 'accepted')
+                        );
+                })
                 ->latest() // order by created_at desc
                 ->paginate($perPage);
 
@@ -147,7 +155,6 @@ class PostController extends BaseController
                 'status' => true,
                 'message' => 'Feed retrieved successfully!',
             ]);
-
         } catch (\Exception $e) {
             return $this->responseJson(false, 500, 'Failed to retrieve feed.', ['error' => $e->getMessage()]);
         }
@@ -245,14 +252,14 @@ class PostController extends BaseController
                     $fileType = in_array(strtolower($extension), ['mp4', 'mov', 'avi']) ? 'video' : 'image';
 
                     // Generate a unique filename
-                    $filename = time().'_'.uniqid().'.'.$extension;
+                    $filename = time() . '_' . uniqid() . '.' . $extension;
 
                     // Store file in public/uploads/posts
                     $file->move(public_path('assets/uploads/posts'), $filename);
 
                     PostMedia::create([
                         'post_id' => $post->id,
-                        'file' => 'assets/uploads/posts/'.$filename,
+                        'file' => 'assets/uploads/posts/' . $filename,
                         'file_type' => $fileType,
                     ]);
                 }
@@ -277,7 +284,6 @@ class PostController extends BaseController
                 'message' => 'Post created successfully!',
                 'data' => new PostResource($post)
             ], 200);
-
         } catch (\Exception $e) {
             DB::rollBack();
 
@@ -415,12 +421,12 @@ class PostController extends BaseController
                     $extension = $file->getClientOriginalExtension();
                     $fileType = in_array(strtolower($extension), ['mp4', 'mov', 'avi']) ? 'video' : 'image';
 
-                    $filename = time().'_'.uniqid().'.'.$extension;
+                    $filename = time() . '_' . uniqid() . '.' . $extension;
                     $file->move(public_path('assets/uploads/posts'), $filename);
 
                     PostMedia::create([
                         'post_id' => $post->id,
-                        'file' => 'assets/uploads/posts/'.$filename,
+                        'file' => 'assets/uploads/posts/' . $filename,
                         'file_type' => $fileType,
                     ]);
                 }
@@ -435,7 +441,6 @@ class PostController extends BaseController
                 'message' => 'Post updated successfully!',
                 'data' => new PostResource($post)
             ], 200);
-
         } catch (\Exception $e) {
             DB::rollBack();
 
@@ -499,7 +504,6 @@ class PostController extends BaseController
             DB::commit();
 
             return $this->responseJson(true, 200, 'Post deleted successfully!', []);
-
         } catch (\Exception $e) {
             DB::rollBack();
 
@@ -568,7 +572,6 @@ class PostController extends BaseController
                 'status' => true,
                 'message' => 'User feed retrieved successfully!',
             ]);
-
         } catch (\Exception $e) {
             return $this->responseJson(false, 500, 'Failed to retrieve user feed.', ['error' => $e->getMessage()]);
         }
@@ -589,7 +592,7 @@ class PostController extends BaseController
                 if (stripos($c->name, 'Lesbian') !== false || stripos($c->description, 'Lesbian') !== false) {
                     $category = 'Lesbian Community';
                 }
-                
+
                 return [
                     'id' => $c->id,
                     'uuid' => $c->uuid,
@@ -615,7 +618,8 @@ class PostController extends BaseController
                 $dateFormatted = $e->event_date;
                 try {
                     $dateFormatted = \Carbon\Carbon::parse($e->event_date)->format('M d • D');
-                } catch (\Throwable $err) {}
+                } catch (\Throwable $err) {
+                }
 
                 $attendees = $e->joinedUsers()
                     ->take(3)
@@ -691,7 +695,7 @@ class PostController extends BaseController
             ->map(function ($u) use ($currentUserHobbies) {
                 $otherUserHobbies = $u->hobbies->pluck('id')->toArray();
                 $overlap = count(array_intersect($currentUserHobbies, $otherUserHobbies));
-                
+
                 // Match score algorithm: base 70% + 5% per common hobby, capped at 98%
                 $score = min(98, 70 + ($overlap * 5));
                 if ($score == 70) {
@@ -703,7 +707,8 @@ class PostController extends BaseController
                 if (!$age && $dob) {
                     try {
                         $age = \Carbon\Carbon::parse($dob)->age;
-                    } catch (\Throwable $err) {}
+                    } catch (\Throwable $err) {
+                    }
                 }
 
                 return [

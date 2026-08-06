@@ -2,11 +2,12 @@
 
 namespace App\Http\Controllers\Api;
 
+use \App\Models\UserBlock;
 use App\Http\Controllers\Controller;
 use App\Models\Chat;
 use App\Models\ChatParticipant;
-use App\Models\User;
 use App\Models\Notification;
+use App\Models\User;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Validator;
 
@@ -281,11 +282,12 @@ class ChatController extends Controller
         $search = $request->query('search');
 
         // Exclude users blocked by the current user or who blocked the current user
-        $blockedUserIds = \App\Models\UserBlock::where('user_id', $currentUser->id)->pluck('blocked_user_id')
-            ->merge(\App\Models\UserBlock::where('blocked_user_id', $currentUser->id)->pluck('user_id'))
+        $blockedUserIds = UserBlock::where('user_id', $currentUser->id)->pluck('blocked_user_id')
+            ->merge(UserBlock::where('blocked_user_id', $currentUser->id)->pluck('user_id'))
             ->filter()->unique()->toArray();
 
-        $query = User::where('id', '!=', $currentUser->id)
+        $query = $currentUser->friends()
+            ->where('id', '!=', $currentUser->id)
             ->where('user_type', 3) // Standard User
             ->where('is_active', 1)
             ->where('is_blocked', 0);
