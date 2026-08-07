@@ -72,7 +72,7 @@ class MatchingController extends Controller
             $query->inRandomOrder();
         }
 
-        $users = $query->limit(20)->get();
+        $users = $query->limit(5)->get();
 
         return response()->json([
             'status' => 'success',
