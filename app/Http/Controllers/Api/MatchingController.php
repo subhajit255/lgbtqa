@@ -12,7 +12,27 @@ use Illuminate\Support\Facades\Auth;
 class MatchingController extends Controller
 {
     /**
-     * Get the feed of users to swipe on.
+     * @OA\Get(
+     *     path="/api/feed",
+     *     summary="Get the feed of users to swipe on",
+     *     tags={"Matching"},
+     *     security={{"bearerAuth":{}}},
+     *     @OA\Parameter(
+     *         name="tab",
+     *         in="query",
+     *         description="Tab to view: 'for_you' or 'nearby'",
+     *         required=false,
+     *         @OA\Schema(type="string", enum={"for_you", "nearby"}, default="for_you")
+     *     ),
+     *     @OA\Response(
+     *         response=200,
+     *         description="Successful operation",
+     *         @OA\JsonContent(
+     *             @OA\Property(property="status", type="string", example="success"),
+     *             @OA\Property(property="data", type="array", @OA\Items(type="object"))
+     *         )
+     *     )
+     * )
      */
     public function feed(Request $request)
     {
@@ -61,7 +81,33 @@ class MatchingController extends Controller
     }
 
     /**
-     * Handle a swipe action (like, pass, super_like).
+     * @OA\Post(
+     *     path="/api/swipe",
+     *     summary="Handle a swipe action (like, pass, super_like)",
+     *     tags={"Matching"},
+     *     security={{"bearerAuth":{}}},
+     *     @OA\RequestBody(
+     *         required=true,
+     *         @OA\JsonContent(
+     *             required={"target_user_id", "action"},
+     *             @OA\Property(property="target_user_id", type="integer", example=2),
+     *             @OA\Property(property="action", type="string", enum={"like", "pass", "super_like"}, example="like")
+     *         )
+     *     ),
+     *     @OA\Response(
+     *         response=200,
+     *         description="Swipe recorded",
+     *         @OA\JsonContent(
+     *             @OA\Property(property="status", type="string", example="success"),
+     *             @OA\Property(property="is_match", type="boolean", example=false),
+     *             @OA\Property(property="message", type="string", example="Swipe recorded.")
+     *         )
+     *     ),
+     *     @OA\Response(
+     *         response=400,
+     *         description="Already swiped"
+     *     )
+     * )
      */
     public function swipe(Request $request)
     {
@@ -117,7 +163,29 @@ class MatchingController extends Controller
     }
 
     /**
-     * Send an icebreaker (Nudge, Post-It, or Message) to a user immediately after liking them.
+     * @OA\Post(
+     *     path="/api/icebreaker",
+     *     summary="Send an icebreaker (Nudge, Post-It, or Message) to a user immediately after liking them.",
+     *     tags={"Matching"},
+     *     security={{"bearerAuth":{}}},
+     *     @OA\RequestBody(
+     *         required=true,
+     *         @OA\JsonContent(
+     *             required={"receiver_id", "type"},
+     *             @OA\Property(property="receiver_id", type="integer", example=3),
+     *             @OA\Property(property="type", type="string", enum={"message", "post_it", "nudge"}, example="nudge"),
+     *             @OA\Property(property="content", type="string", nullable=true, example="Hey there!")
+     *         )
+     *     ),
+     *     @OA\Response(
+     *         response=200,
+     *         description="Icebreaker sent successfully"
+     *     ),
+     *     @OA\Response(
+     *         response=403,
+     *         description="Must like user first"
+     *     )
+     * )
      */
     public function sendIcebreaker(Request $request)
     {
@@ -143,7 +211,7 @@ class MatchingController extends Controller
             'sender_id' => $user->id,
             'receiver_id' => $request->receiver_id,
             'type' => $request->type,
-            'content' => $request->content
+            'content' => $request->input('content')
         ]);
 
         return response()->json([
@@ -154,7 +222,20 @@ class MatchingController extends Controller
     }
 
     /**
-     * Get user's matches.
+     * @OA\Get(
+     *     path="/api/matches",
+     *     summary="Get user's matches",
+     *     tags={"Matching"},
+     *     security={{"bearerAuth":{}}},
+     *     @OA\Response(
+     *         response=200,
+     *         description="Successful operation",
+     *         @OA\JsonContent(
+     *             @OA\Property(property="status", type="string", example="success"),
+     *             @OA\Property(property="data", type="array", @OA\Items(type="object"))
+     *         )
+     *     )
+     * )
      */
     public function matches(Request $request)
     {
