@@ -13,7 +13,7 @@ class MatchingController extends Controller
 {
     /**
      * @OA\Get(
-     *     path="/api/feed",
+     *     path="/api/matching/feed",
      *     summary="Get the feed of users to swipe on",
      *     tags={"Matching"},
      *     security={{"bearerAuth":{}}},
@@ -82,7 +82,7 @@ class MatchingController extends Controller
 
     /**
      * @OA\Post(
-     *     path="/api/swipe",
+     *     path="/api/matching/swipe",
      *     summary="Handle a swipe action (like, pass, super_like)",
      *     tags={"Matching"},
      *     security={{"bearerAuth":{}}},
@@ -164,7 +164,7 @@ class MatchingController extends Controller
 
     /**
      * @OA\Post(
-     *     path="/api/icebreaker",
+     *     path="/api/matching/icebreaker",
      *     summary="Send an icebreaker (Nudge, Post-It, or Message) to a user immediately after liking them.",
      *     tags={"Matching"},
      *     security={{"bearerAuth":{}}},
@@ -223,7 +223,7 @@ class MatchingController extends Controller
 
     /**
      * @OA\Get(
-     *     path="/api/matches",
+     *     path="/api/matching/matches",
      *     summary="Get user's matches",
      *     tags={"Matching"},
      *     security={{"bearerAuth":{}}},
