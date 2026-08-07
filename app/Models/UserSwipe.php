@@ -5,22 +5,23 @@ namespace App\Models;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 
-class FriendRequest extends Model
+class UserSwipe extends Model
 {
     use HasFactory;
 
     protected $guarded = [];
 
     protected $casts = [
-        'met_in_real_life' => 'boolean',
+        'is_match' => 'boolean',
     ];
-    public function sender()
+
+    public function user()
     {
         return $this->belongsTo(User::class, 'user_id');
     }
 
-    public function receiver()
+    public function targetUser()
     {
-        return $this->belongsTo(User::class, 'friend_id');
+        return $this->belongsTo(User::class, 'target_user_id');
     }
 }

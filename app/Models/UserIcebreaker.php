@@ -5,22 +5,23 @@ namespace App\Models;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 
-class FriendRequest extends Model
+class UserIcebreaker extends Model
 {
     use HasFactory;
 
     protected $guarded = [];
 
     protected $casts = [
-        'met_in_real_life' => 'boolean',
+        'is_read' => 'boolean',
     ];
+
     public function sender()
     {
-        return $this->belongsTo(User::class, 'user_id');
+        return $this->belongsTo(User::class, 'sender_id');
     }
 
     public function receiver()
     {
-        return $this->belongsTo(User::class, 'friend_id');
+        return $this->belongsTo(User::class, 'receiver_id');
     }
 }

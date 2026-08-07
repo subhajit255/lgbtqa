@@ -23,6 +23,13 @@ class FriendController extends BaseController
      *         required=true,
      *         @OA\Schema(type="integer")
      *     ),
+     *     @OA\Parameter(
+     *         name="met_in_real_life",
+     *         in="query",
+     *         description="Whether the user met this person in real life",
+     *         required=false,
+     *         @OA\Schema(type="boolean", default=false)
+     *     ),
      *     @OA\Response(response=200, description="Friend request sent successfully"),
      *     @OA\Response(response=400, description="Invalid request / Already sent"),
      *     @OA\Response(response=404, description="User not found")
@@ -55,7 +62,8 @@ class FriendController extends BaseController
         FriendRequest::create([
             'user_id' => $user->id,
             'friend_id' => $user_id,
-            'status' => 'pending'
+            'status' => 'pending',
+            'met_in_real_life' => $request->boolean('met_in_real_life', false)
         ]);
 
         return $this->responseJson(true, 200, 'Friend request sent successfully.', []);

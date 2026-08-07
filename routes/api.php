@@ -16,6 +16,7 @@ use App\Http\Controllers\Api\FriendController;
 use App\Http\Controllers\Api\GroupApiController;
 use App\Http\Controllers\Api\HobbyController;
 use App\Http\Controllers\Api\KycController;
+use App\Http\Controllers\Api\MatchingController;
 use App\Http\Controllers\Api\PostController;
 use App\Http\Controllers\Api\PostEngagementController;
 use App\Http\Controllers\Api\StatusController;
@@ -132,6 +133,14 @@ Route::middleware(['auth:api', \App\Http\Middleware\UpdateUserLastActivity::clas
         Route::post('/create', 'createPost');
         Route::post('/update/{id}', 'updatePost');
         Route::delete('/delete/{id}', 'deletePost');
+    });
+
+    // Matching Routes
+    Route::controller(MatchingController::class)->prefix('matching')->group(function () {
+        Route::get('/feed', 'feed');
+        Route::post('/swipe', 'swipe');
+        Route::post('/icebreaker', 'sendIcebreaker');
+        Route::get('/matches', 'matches');
     });
 
     // Status Routes

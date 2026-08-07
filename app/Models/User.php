@@ -158,4 +158,25 @@ class User extends Authenticatable
     {
         return $this->hasOne(UserLocation::class);
     }
+
+    public function swipes()
+    {
+        return $this->hasMany(UserSwipe::class, 'user_id');
+    }
+
+    public function matches()
+    {
+        // Matches are swipes where is_match = true
+        return $this->hasMany(UserSwipe::class, 'user_id')->where('is_match', true);
+    }
+
+    public function sentIcebreakers()
+    {
+        return $this->hasMany(UserIcebreaker::class, 'sender_id');
+    }
+
+    public function receivedIcebreakers()
+    {
+        return $this->hasMany(UserIcebreaker::class, 'receiver_id');
+    }
 }

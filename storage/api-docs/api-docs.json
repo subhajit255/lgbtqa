@@ -3631,6 +3631,116 @@
                 ]
             }
         },
+        "/api/communities/suggested-communities": {
+            "get": {
+                "tags": [
+                    "Communities"
+                ],
+                "summary": "Get list of suggested communities based on user preferences",
+                "operationId": "67b9e4d57f5df204ab804ff2a46b2e98",
+                "responses": {
+                    "200": {
+                        "description": "Suggested communities retrieved successfully"
+                    }
+                },
+                "security": [
+                    {
+                        "bearerAuth": []
+                    }
+                ]
+            }
+        },
+        "/api/communities/members-list": {
+            "get": {
+                "tags": [
+                    "Communities"
+                ],
+                "summary": "Get list of community members",
+                "operationId": "66fdd7225157d32f93a7a881ccb9eb82",
+                "parameters": [
+                    {
+                        "name": "search",
+                        "in": "query",
+                        "description": "Search members by name",
+                        "required": false,
+                        "schema": {
+                            "type": "string"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "Members list retrieved successfully"
+                    },
+                    "500": {
+                        "description": "Something went wrong"
+                    }
+                },
+                "security": [
+                    {
+                        "bearerAuth": []
+                    }
+                ]
+            }
+        },
+        "/api/communities/{uuid}/add-members": {
+            "post": {
+                "tags": [
+                    "Communities"
+                ],
+                "summary": "Add members to a community",
+                "operationId": "658f1474aa977c82f526cd3b1bdacb79",
+                "parameters": [
+                    {
+                        "name": "uuid",
+                        "in": "path",
+                        "description": "Community UUID",
+                        "required": true,
+                        "schema": {
+                            "type": "string"
+                        }
+                    }
+                ],
+                "requestBody": {
+                    "required": true,
+                    "content": {
+                        "application/json": {
+                            "schema": {
+                                "required": [
+                                    "user_ids"
+                                ],
+                                "properties": {
+                                    "user_ids": {
+                                        "description": "Array of User IDs to add to the community",
+                                        "type": "array",
+                                        "items": {
+                                            "type": "integer"
+                                        }
+                                    }
+                                },
+                                "type": "object"
+                            }
+                        }
+                    }
+                },
+                "responses": {
+                    "200": {
+                        "description": "Members added successfully"
+                    },
+                    "404": {
+                        "description": "Community not found"
+                    },
+                    "500": {
+                        "description": "Something went wrong"
+                    }
+                },
+                "security": [
+                    {
+                        "bearerAuth": []
+                    }
+                ]
+            }
+        },
         "/api/events": {
             "get": {
                 "tags": [
@@ -4245,6 +4355,16 @@
                         "required": true,
                         "schema": {
                             "type": "integer"
+                        }
+                    },
+                    {
+                        "name": "met_in_real_life",
+                        "in": "query",
+                        "description": "Whether the user met this person in real life",
+                        "required": false,
+                        "schema": {
+                            "type": "boolean",
+                            "default": false
                         }
                     }
                 ],
