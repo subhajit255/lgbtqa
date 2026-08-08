@@ -12,7 +12,7 @@ return new class extends Migration
     public function up(): void
     {
         Schema::table('posts', function (Blueprint $table) {
-            $table->foreignId('post_category_id')->nullable()->constrained('post_categories')->after('id');
+            $table->foreignId('post_category_id')->nullable()->after('id')->constrained('post_categories');
             $table->enum('visibility', ["PUBLIC", "FRIENDS", "PRIVATE"])->default("PUBLIC")->after('description')->comment('PUBLIC, FRIENDS, PRIVATE');
         });
     }
