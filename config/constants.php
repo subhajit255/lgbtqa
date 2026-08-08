@@ -12,5 +12,6 @@ return [
     'SITE_BADGE_COLOR_UPLOAD_PATH' => 'badge-color/',
     'SITE_EVENT_IMAGE_UPLOAD_PATH' => 'events/',
     'SITE_COMMUNITY_IMAGE_UPLOAD_PATH' => 'communities/',
+    'SITE_POST_CATEGORY_UPLOAD_PATH' => 'post-category/',
     'CATCH_ERROR_MSG' => 'Internal server error. Please try again later.',
 ];

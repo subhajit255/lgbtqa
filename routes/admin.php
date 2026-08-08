@@ -8,6 +8,7 @@ use App\Http\Controllers\Admin\BannerController;
 use App\Http\Controllers\Admin\BlogController;
 use App\Http\Controllers\Admin\BroadcastController;
 use App\Http\Controllers\Admin\CategoryController;
+use App\Http\Controllers\Admin\PostCategoryController;
 use App\Http\Controllers\Admin\CmsController;
 use App\Http\Controllers\Admin\GalleryController;
 use App\Http\Controllers\Admin\HobbyController;
@@ -72,6 +73,10 @@ Route::as('admin.')->group(function () {
             Route::any('add/{uuid?}', 'add')->name('add');
         });
         Route::controller(CategoryController::class)->as('category.')->prefix('category')->group(function () {
+            Route::get('list', 'index')->name('list');
+            Route::any('add/{uuid?}', 'add')->name('add');
+        });
+        Route::controller(PostCategoryController::class)->as('post-category.')->prefix('post-category')->group(function () {
             Route::get('list', 'index')->name('list');
             Route::any('add/{uuid?}', 'add')->name('add');
         });

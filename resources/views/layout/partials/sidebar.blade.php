@@ -205,7 +205,7 @@
                 <div data-kt-menu-trigger="{default: 'click', lg: 'hover'}" data-kt-menu-placement="right-start"
                     class="menu-item menu-lg-down-accordion menu-sub-lg-down-indention">
                     <div data-kt-menu-trigger="click"
-                        class="menu-item menu-accordion {{ sidebarOpen(['admin.category.*', 'admin.banner.*', 'admin.blog.*', 'admin.cms.*', 'admin.hobby.*', 'admin.gallery.*', 'admin.groups.*', 'admin.badge-style.*', 'admin.badge-color.*']) }}">
+                        class="menu-item menu-accordion {{ sidebarOpen(['admin.category.*', 'admin.post-category.*', 'admin.banner.*', 'admin.blog.*', 'admin.cms.*', 'admin.hobby.*', 'admin.gallery.*', 'admin.groups.*', 'admin.badge-style.*', 'admin.badge-color.*']) }}">
                         <span class="menu-link">
                             <span class="menu-icon">
                                 <span class="menu-icon">
@@ -220,6 +220,16 @@
                         <div class="menu-sub menu-sub-accordion" style="">
                             <div data-kt-menu-trigger="click" class="menu-item menu-accordion mb-1">
                                 <div class="menu-item">
+                                    <a href="{{ route('admin.post-category.list') }}">
+                                        <span class="menu-link {{ sidebarActive(['admin.post-category.*']) }}">
+                                            <span class="menu-icon">
+                                                <span class="svg-icon svg-icon-2">
+                                                    <i class="fa-solid fa-layer-group" style="color: #f44336;"></i>
+                                                </span>
+                                            </span>
+                                            <span class="menu-title">Post Categories</span>
+                                        </span>
+                                    </a>
                                     <a href="{{ route('admin.badge-style.list') }}">
                                         <span class="menu-link {{ sidebarActive(['admin.badge-style.*']) }}">
                                             <span class="menu-icon">

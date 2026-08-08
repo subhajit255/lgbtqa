@@ -3,6 +3,7 @@
 namespace App\Http\Controllers\Api;
 
 use App\Http\Controllers\BaseController;
+use App\Http\Resources\Api\PostCategoryResource;
 use App\Http\Resources\PostResource;
 use App\Models\Community;
 use App\Models\Event;
@@ -214,7 +215,7 @@ class PostController extends BaseController
             true,
             200,
             'Post categories retrieved successfully',
-            $postCategories
+            PostCategoryResource::collection($postCategories)
         );
     }
 
