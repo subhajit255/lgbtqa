@@ -5,12 +5,13 @@ namespace App\Http\Controllers\Api;
 use \App\Models\Chat;
 use \App\Models\ChatParticipant;
 use App\Http\Controllers\Controller;
+use App\Http\Resources\Api\User\UserResource;
 use App\Models\Community;
 use App\Models\CommunityHub;
 use App\Models\CommunityMember;
 use App\Models\Notification;
+use App\Models\PostCategory;
 use App\Models\User;
-use App\Http\Resources\Api\User\UserResource;
 use App\Traits\UploadAble;
 use Exception;
 use Illuminate\Http\Request;
@@ -95,59 +96,6 @@ class CommunityApiController extends Controller
             200,
             'Communities retrieved successfully',
             $communitiesPaginator
-        );
-    }
-
-    /**
-     * @OA\Get(
-     *     path="/api/communities/community-hubs",
-     *     summary="Get list of active community hubs",
-     *     tags={"Communities"},
-     *     security={{"bearerAuth":{}}},
-     *     @OA\Parameter(
-     *         name="search",
-     *         in="query",
-     *         description="Search community hubs by title or description",
-     *         required=false,
-     *         @OA\Schema(type="string")
-     *     ),
-     *     @OA\Response(
-     *         response=200,
-     *         description="Community hubs retrieved successfully",
-     *         @OA\JsonContent(
-     *             @OA\Property(property="status", type="boolean", example=true),
-     *             @OA\Property(property="message", type="string", example="Community hubs retrieved successfully"),
-     *             @OA\Property(property="data", type="array",
-     *                 @OA\Items(
-     *                     type="object",
-     *                     @OA\Property(property="id", type="integer"),
-     *                     @OA\Property(property="title", type="string"),
-     *                     @OA\Property(property="description", type="string"),
-     *                     @OA\Property(property="is_active", type="integer")
-     *                 )
-     *             )
-     *         )
-     *     ),
-     *     @OA\Response(response=401, description="Unauthorized")
-     * )
-     */
-    public function communityHubs(Request $request)
-    {
-        $query = CommunityHub::where(['is_active' => 1]);
-
-        if ($request->filled('search')) {
-            $search = $request->search;
-            $query->where(function ($q) use ($search) {
-                $q->where('title', 'like', "%{$search}%")
-                    ->orWhere('description', 'like', "%{$search}%");
-            });
-        }
-        $communityHubs = $query->get();
-        return $this->responseJson(
-            true,
-            200,
-            'Community hubs retrieved successfully',
-            $communityHubs
         );
     }
 

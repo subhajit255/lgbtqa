@@ -2,12 +2,12 @@
 
 namespace Database\Seeders;
 
-use App\Models\CommunityHub;
+use App\Models\PostCategory;
 use Illuminate\Database\Console\Seeds\WithoutModelEvents;
 use Illuminate\Database\Seeder;
 use Illuminate\Support\Str;
 
-class CommunityHubSeeder extends Seeder
+class PostCategoriesSeeder extends Seeder
 {
     /**
      * Run the database seeds.
@@ -29,7 +29,7 @@ class CommunityHubSeeder extends Seeder
         ];
 
         foreach ($hubs as $hub) {
-            CommunityHub::create([
+            PostCategory::create([
                 'title' => $hub,
                 'slug' => Str::slug($hub),
                 'is_active' => true,

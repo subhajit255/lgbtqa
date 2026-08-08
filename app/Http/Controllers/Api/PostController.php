@@ -4,11 +4,12 @@ namespace App\Http\Controllers\Api;
 
 use App\Http\Controllers\BaseController;
 use App\Http\Resources\PostResource;
-use App\Models\Post;
-use App\Models\PostMedia;
 use App\Models\Community;
 use App\Models\Event;
 use App\Models\Notification;
+use App\Models\Post;
+use App\Models\PostCategory;
+use App\Models\PostMedia;
 use App\Traits\CommonFunction;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
@@ -165,6 +166,59 @@ class PostController extends BaseController
     }
 
     /**
+     * @OA\Get(
+     *     path="/api/posts/post-categories",
+     *     summary="Get list of active post categories",
+     *     tags={"Posts"},
+     *     security={{"bearerAuth":{}}},
+     *     @OA\Parameter(
+     *         name="search",
+     *         in="query",
+     *         description="Search post categories by title or description",
+     *         required=false,
+     *         @OA\Schema(type="string")
+     *     ),
+     *     @OA\Response(
+     *         response=200,
+     *         description="Post categories retrieved successfully",
+     *         @OA\JsonContent(
+     *             @OA\Property(property="status", type="boolean", example=true),
+     *             @OA\Property(property="message", type="string", example="Community hubs retrieved successfully"),
+     *             @OA\Property(property="data", type="array",
+     *                 @OA\Items(
+     *                     type="object",
+     *                     @OA\Property(property="id", type="integer"),
+     *                     @OA\Property(property="title", type="string"),
+     *                     @OA\Property(property="description", type="string"),
+     *                     @OA\Property(property="is_active", type="integer")
+     *                 )
+     *             )
+     *         )
+     *     ),
+     *     @OA\Response(response=401, description="Unauthorized")
+     * )
+     */
+    public function postCategories(Request $request)
+    {
+        $query = PostCategory::where(['is_active' => 1]);
+
+        if ($request->filled('search')) {
+            $search = $request->search;
+            $query->where(function ($q) use ($search) {
+                $q->where('title', 'like', "%{$search}%")
+                    ->orWhere('description', 'like', "%{$search}%");
+            });
+        }
+        $postCategories = $query->get();
+        return $this->responseJson(
+            true,
+            200,
+            'Post categories retrieved successfully',
+            $postCategories
+        );
+    }
+
+    /**
      * @OA\Post(
      *     path="/api/posts/create",
      *     summary="Create a new post",
@@ -181,10 +235,11 @@ class PostController extends BaseController
      *
      *             @OA\Schema(
      *                 type="object",
-     *                 required={"title"},
      *
      *                 @OA\Property(property="title", type="string", description="Title of the post", example="My awesome weekend"),
      *                 @OA\Property(property="description", type="string", description="Detailed description", example="Had a great time at the beach!"),
+     *                 @OA\Property(property="visibility", type="string", description="Visibility of the post (PUBLIC, FRIENDS, PRIVATE)", example="PUBLIC"),
+     *                 @OA\Property(property="post_category_id", type="integer", description="Post category ID", example=1),
      *                 @OA\Property(
      *                     property="media[]",
      *                     type="array",
@@ -217,6 +272,8 @@ class PostController extends BaseController
         $validator = Validator::make($request->all(), [
             'title' => 'nullable|string|max:255',
             'description' => 'nullable|string',
+            'visibility' => 'nullable|in:PUBLIC,FRIENDS,PRIVATE',
+            'post_category_id' => 'nullable|exists:post_categories,id',
             'media' => 'nullable|array',
             'media.*' => 'file|mimes:jpeg,png,jpg,gif,svg,mp4,mov,avi|max:102400', // 100MB limit
         ]);
@@ -244,9 +301,11 @@ class PostController extends BaseController
             }
 
             $post = Post::create([
+                'post_category_id' => $request->post_category_id ?? null,
                 'user_id' => auth()->id(),
                 'title' => $title,
                 'description' => $request->description,
+                'visibility' => $request->visibility ?? 'PUBLIC',
                 'status' => 'active',
             ]);
 

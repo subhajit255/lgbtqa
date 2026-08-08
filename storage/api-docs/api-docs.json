@@ -3106,76 +3106,6 @@
                 ]
             }
         },
-        "/api/communities/community-hubs": {
-            "get": {
-                "tags": [
-                    "Communities"
-                ],
-                "summary": "Get list of active community hubs",
-                "operationId": "4aa714f387b744dae68deaaa9181ff58",
-                "parameters": [
-                    {
-                        "name": "search",
-                        "in": "query",
-                        "description": "Search community hubs by title or description",
-                        "required": false,
-                        "schema": {
-                            "type": "string"
-                        }
-                    }
-                ],
-                "responses": {
-                    "200": {
-                        "description": "Community hubs retrieved successfully",
-                        "content": {
-                            "application/json": {
-                                "schema": {
-                                    "properties": {
-                                        "status": {
-                                            "type": "boolean",
-                                            "example": true
-                                        },
-                                        "message": {
-                                            "type": "string",
-                                            "example": "Community hubs retrieved successfully"
-                                        },
-                                        "data": {
-                                            "type": "array",
-                                            "items": {
-                                                "properties": {
-                                                    "id": {
-                                                        "type": "integer"
-                                                    },
-                                                    "title": {
-                                                        "type": "string"
-                                                    },
-                                                    "description": {
-                                                        "type": "string"
-                                                    },
-                                                    "is_active": {
-                                                        "type": "integer"
-                                                    }
-                                                },
-                                                "type": "object"
-                                            }
-                                        }
-                                    },
-                                    "type": "object"
-                                }
-                            }
-                        }
-                    },
-                    "401": {
-                        "description": "Unauthorized"
-                    }
-                },
-                "security": [
-                    {
-                        "bearerAuth": []
-                    }
-                ]
-            }
-        },
         "/api/communities/{uuid}": {
             "get": {
                 "tags": [
@@ -4765,6 +4695,226 @@
                 ]
             }
         },
+        "/api/matching/feed": {
+            "get": {
+                "tags": [
+                    "Matching"
+                ],
+                "summary": "Get the feed of users to swipe on",
+                "operationId": "6a473eec3a2d1cb4100f4465649c3961",
+                "parameters": [
+                    {
+                        "name": "tab",
+                        "in": "query",
+                        "description": "Tab to view: 'for_you' or 'nearby'",
+                        "required": false,
+                        "schema": {
+                            "type": "string",
+                            "default": "for_you",
+                            "enum": [
+                                "for_you",
+                                "nearby"
+                            ]
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "Successful operation",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "properties": {
+                                        "status": {
+                                            "type": "string",
+                                            "example": "success"
+                                        },
+                                        "data": {
+                                            "type": "array",
+                                            "items": {
+                                                "type": "object"
+                                            }
+                                        }
+                                    },
+                                    "type": "object"
+                                }
+                            }
+                        }
+                    }
+                },
+                "security": [
+                    {
+                        "bearerAuth": []
+                    }
+                ]
+            }
+        },
+        "/api/matching/swipe": {
+            "post": {
+                "tags": [
+                    "Matching"
+                ],
+                "summary": "Handle a swipe action (like, pass, super_like)",
+                "operationId": "9c868dc8bca98eaf35f7a8e619cb30ff",
+                "requestBody": {
+                    "required": true,
+                    "content": {
+                        "application/json": {
+                            "schema": {
+                                "required": [
+                                    "target_user_id",
+                                    "action"
+                                ],
+                                "properties": {
+                                    "target_user_id": {
+                                        "type": "integer",
+                                        "example": 2
+                                    },
+                                    "action": {
+                                        "type": "string",
+                                        "enum": [
+                                            "like",
+                                            "pass",
+                                            "super_like"
+                                        ],
+                                        "example": "like"
+                                    }
+                                },
+                                "type": "object"
+                            }
+                        }
+                    }
+                },
+                "responses": {
+                    "200": {
+                        "description": "Swipe recorded",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "properties": {
+                                        "status": {
+                                            "type": "string",
+                                            "example": "success"
+                                        },
+                                        "is_match": {
+                                            "type": "boolean",
+                                            "example": false
+                                        },
+                                        "message": {
+                                            "type": "string",
+                                            "example": "Swipe recorded."
+                                        }
+                                    },
+                                    "type": "object"
+                                }
+                            }
+                        }
+                    },
+                    "400": {
+                        "description": "Already swiped"
+                    }
+                },
+                "security": [
+                    {
+                        "bearerAuth": []
+                    }
+                ]
+            }
+        },
+        "/api/matching/icebreaker": {
+            "post": {
+                "tags": [
+                    "Matching"
+                ],
+                "summary": "Send an icebreaker (Nudge, Post-It, or Message) to a user immediately after liking them.",
+                "operationId": "b6f04e7574e7032d53d4d6cf374afcfd",
+                "requestBody": {
+                    "required": true,
+                    "content": {
+                        "application/json": {
+                            "schema": {
+                                "required": [
+                                    "receiver_id",
+                                    "type"
+                                ],
+                                "properties": {
+                                    "receiver_id": {
+                                        "type": "integer",
+                                        "example": 3
+                                    },
+                                    "type": {
+                                        "type": "string",
+                                        "enum": [
+                                            "message",
+                                            "post_it",
+                                            "nudge"
+                                        ],
+                                        "example": "nudge"
+                                    },
+                                    "content": {
+                                        "type": "string",
+                                        "example": "Hey there!",
+                                        "nullable": true
+                                    }
+                                },
+                                "type": "object"
+                            }
+                        }
+                    }
+                },
+                "responses": {
+                    "200": {
+                        "description": "Icebreaker sent successfully"
+                    },
+                    "403": {
+                        "description": "Must like user first"
+                    }
+                },
+                "security": [
+                    {
+                        "bearerAuth": []
+                    }
+                ]
+            }
+        },
+        "/api/matching/matches": {
+            "get": {
+                "tags": [
+                    "Matching"
+                ],
+                "summary": "Get user's matches",
+                "operationId": "42054e22864ddaea74bb32e15b166f49",
+                "responses": {
+                    "200": {
+                        "description": "Successful operation",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "properties": {
+                                        "status": {
+                                            "type": "string",
+                                            "example": "success"
+                                        },
+                                        "data": {
+                                            "type": "array",
+                                            "items": {
+                                                "type": "object"
+                                            }
+                                        }
+                                    },
+                                    "type": "object"
+                                }
+                            }
+                        }
+                    }
+                },
+                "security": [
+                    {
+                        "bearerAuth": []
+                    }
+                ]
+            }
+        },
         "/api/notifications": {
             "get": {
                 "tags": [
@@ -5105,6 +5255,76 @@
                 ]
             }
         },
+        "/api/posts/post-categories": {
+            "get": {
+                "tags": [
+                    "Posts"
+                ],
+                "summary": "Get list of active post categories",
+                "operationId": "ba490b9d5dd5a9fdcf06d85fa3ad2c4b",
+                "parameters": [
+                    {
+                        "name": "search",
+                        "in": "query",
+                        "description": "Search post categories by title or description",
+                        "required": false,
+                        "schema": {
+                            "type": "string"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "Post categories retrieved successfully",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "properties": {
+                                        "status": {
+                                            "type": "boolean",
+                                            "example": true
+                                        },
+                                        "message": {
+                                            "type": "string",
+                                            "example": "Community hubs retrieved successfully"
+                                        },
+                                        "data": {
+                                            "type": "array",
+                                            "items": {
+                                                "properties": {
+                                                    "id": {
+                                                        "type": "integer"
+                                                    },
+                                                    "title": {
+                                                        "type": "string"
+                                                    },
+                                                    "description": {
+                                                        "type": "string"
+                                                    },
+                                                    "is_active": {
+                                                        "type": "integer"
+                                                    }
+                                                },
+                                                "type": "object"
+                                            }
+                                        }
+                                    },
+                                    "type": "object"
+                                }
+                            }
+                        }
+                    },
+                    "401": {
+                        "description": "Unauthorized"
+                    }
+                },
+                "security": [
+                    {
+                        "bearerAuth": []
+                    }
+                ]
+            }
+        },
         "/api/posts/create": {
             "post": {
                 "tags": [
@@ -5118,9 +5338,6 @@
                     "content": {
                         "multipart/form-data": {
                             "schema": {
-                                "required": [
-                                    "title"
-                                ],
                                 "properties": {
                                     "title": {
                                         "description": "Title of the post",
@@ -5131,6 +5348,16 @@
                                         "description": "Detailed description",
                                         "type": "string",
                                         "example": "Had a great time at the beach!"
+                                    },
+                                    "visibility": {
+                                        "description": "Visibility of the post (PUBLIC, FRIENDS, PRIVATE)",
+                                        "type": "string",
+                                        "example": "PUBLIC"
+                                    },
+                                    "post_category_id": {
+                                        "description": "Post category ID",
+                                        "type": "integer",
+                                        "example": 1
                                     },
                                     "media[]": {
                                         "description": "Attach images or videos (max 100MB each)",
@@ -7745,6 +7972,10 @@
         {
             "name": "KYC Verification",
             "description": "KYC Verification"
+        },
+        {
+            "name": "Matching",
+            "description": "Matching"
         },
         {
             "name": "Notifications",

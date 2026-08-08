@@ -7,7 +7,7 @@ use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\SoftDeletes;
 use Webpatser\Uuid\Uuid;
 
-class CommunityHub extends Model
+class PostCategory extends Model
 {
     use HasFactory, SoftDeletes;
     protected $guarded = [];

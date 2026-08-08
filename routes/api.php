@@ -128,6 +128,7 @@ Route::middleware(['auth:api', \App\Http\Middleware\UpdateUserLastActivity::clas
     });
 
     Route::controller(PostController::class)->prefix('posts')->group(function () {
+        Route::get('/post-categories', 'postCategories');
         Route::get('/feed', 'feed');
         Route::get('/user/{userId}', 'userFeed');
         Route::post('/create', 'createPost');
@@ -194,7 +195,6 @@ Route::middleware(['auth:api', \App\Http\Middleware\UpdateUserLastActivity::clas
     // Community Routes
     Route::controller(CommunityApiController::class)->prefix('communities')->group(function () {
         Route::get('/', 'index');
-        Route::get('/community-hubs', 'communityHubs');
         Route::get('/trending', 'trendingCommunities');
         Route::get('/suggested-communities', 'suggestedCommunities');
         Route::post('/create', 'store');
