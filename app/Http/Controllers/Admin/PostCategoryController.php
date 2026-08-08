@@ -28,7 +28,7 @@ class PostCategoryController extends BaseController
             if (!empty($id)) {
                 $request->validate([
                     'title' => 'required|string',
-                    'description' => 'required|string',
+                    'description' => 'nullable|string',
                     'file' => 'sometimes|image|mimes:jpeg,png,jpg,gif,svg',
                     'is_active' => 'sometimes|boolean',
                 ]);
@@ -36,7 +36,7 @@ class PostCategoryController extends BaseController
             } else {
                 $request->validate([
                     'title' => 'required|string',
-                    'description' => 'required|string',
+                    'description' => 'nullable|string',
                     'file' => 'sometimes|image|mimes:jpeg,png,jpg,gif,svg',
                     'is_active' => 'sometimes|boolean',
                 ]);

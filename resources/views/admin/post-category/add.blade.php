@@ -109,7 +109,6 @@
                                         <div class="col-md-12">
                                             <div class="form-group">
                                                 <label for="description" class="label-style">Description</label>
-                                                <span class="asterisk_sign">*</span>
                                                 <textarea class="form-control" name="description" id="description" cols="30" rows="4">{{ $details->description ?? null }}</textarea>
                                             </div>
                                         </div>
