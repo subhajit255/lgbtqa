@@ -129,13 +129,17 @@ class PostController extends BaseController
             // Fetch posts ordered by created_at descending (recent first)
             $posts = Post::with(['user.profile', 'user.kycVerification', 'media', 'loves', 'comments', 'stars', 'emojis'])
                 ->where('status', 'active')
-                ->whereIn('user_id', function ($q) use ($currentUser) {
-                    $q->select('friend_id')->from('friend_requests')->where('user_id', $currentUser->id)->where('status', 'accepted')
-                        ->union(
-                            $q->newQuery()->select('user_id')->from('friend_requests')->where('friend_id', $currentUser->id)->where('status', 'accepted')
-                        );
+                ->where(function ($query) use ($currentUser) {
+                    $query->whereIn('user_id', function ($q) use ($currentUser) {
+                        $q->select('friend_id')->from('friend_requests')
+                            ->where('user_id', $currentUser->id)->where('status', 'accepted')
+                            ->union(
+                                $q->newQuery()->select('user_id')->from('friend_requests')
+                                    ->where('friend_id', $currentUser->id)->where('status', 'accepted')
+                            );
+                    })->orWhere('user_id', $currentUser->id);
                 })
-                ->latest() // order by created_at desc
+                ->latest()
                 ->paginate($perPage);
 
             $postsResource = PostResource::collection($posts);
