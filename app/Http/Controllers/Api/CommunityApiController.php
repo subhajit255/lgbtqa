@@ -10,7 +10,6 @@ use \App\Traits\FeedRecommendationsTrait;
 use App\Http\Controllers\Controller;
 use App\Http\Resources\Api\User\UserResource;
 use App\Models\Community;
-use App\Models\CommunityHub;
 use App\Models\CommunityMember;
 use App\Models\Notification;
 use App\Models\PostCategory;
@@ -232,7 +231,7 @@ class CommunityApiController extends Controller
 
         DB::beginTransaction();
         // find default community hub id
-        $defaultCommunityHub = CommunityHub::where('is_default', 1)->first();
+        // $defaultCommunityHub = CommunityHub::where('is_default', 1)->first();
         try {
             $postData = [
                 "name" => $request->name,
@@ -241,7 +240,7 @@ class CommunityApiController extends Controller
                 "type" => $request->type,
                 "tags" => $request->tags,
                 "is_active" => 1,
-                "community_hub_id" => $request->community_hub_id ?? $defaultCommunityHub->id ?? null,
+                // "community_hub_id" => $request->community_hub_id ?? $defaultCommunityHub->id ?? null,
             ];
 
             if ($request->hasFile('file')) {
