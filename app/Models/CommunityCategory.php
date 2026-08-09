@@ -13,6 +13,6 @@ class CommunityCategory extends Model
 
     public function communities()
     {
-        return $this->belongsToMany(Community::class);
+        return $this->belongsToMany(Community::class, 'community_category_community');
     }
 }
