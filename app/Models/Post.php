@@ -50,4 +50,8 @@ class Post extends Model
     {
         return $this->hasMany(PostEmoji::class, 'post_id');
     }
+    public function postCategory()
+    {
+        return $this->belongsTo(PostCategory::class, 'post_category_id');
+    }
 }

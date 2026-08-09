@@ -41,6 +41,12 @@ class PostResource extends JsonResource
             'user_id' => $this->user_id,
             'title' => $this->title,
             'description' => $this->description,
+            'post_category' => $this->postCategory ? [
+                'id' => $this->postCategory->id,
+                'title' => $this->postCategory->title,
+                'description' => $this->postCategory->description,
+                'image' => $this->postCategory->image_path,
+            ] : null,
             'created_at' => $this->created_at ? $this->created_at->toIso8601String() : null,
             'user' => $this->whenLoaded('user', function () {
                 $profile = $this->user->profile;
