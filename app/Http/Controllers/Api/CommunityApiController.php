@@ -2,8 +2,10 @@
 
 namespace App\Http\Controllers\Api;
 
+use \App\Http\Resources\Api\PostResource;
 use \App\Models\Chat;
 use \App\Models\ChatParticipant;
+use \App\Models\Post;
 use App\Http\Controllers\Controller;
 use App\Http\Resources\Api\User\UserResource;
 use App\Models\Community;
@@ -19,7 +21,7 @@ use Illuminate\Support\Facades\DB;
 
 class CommunityApiController extends Controller
 {
-    use UploadAble;
+    use UploadAble, \App\Traits\FeedRecommendationsTrait;
 
     /**
      * @OA\Get(
@@ -1034,6 +1036,13 @@ class CommunityApiController extends Controller
      *         required=false,
      *         @OA\Schema(type="integer")
      *     ),
+     *     @OA\Parameter(
+     *         name="category_id",
+     *         in="query",
+     *         description="Filter posts by category ID",
+     *         required=false,
+     *         @OA\Schema(type="integer")
+     *     ),
      *     @OA\Response(
      *         response=200,
      *         description="Community feed retrieved successfully"
@@ -1058,14 +1067,28 @@ class CommunityApiController extends Controller
                 ->pluck('user_id')
                 ->unique();
 
-            // Fetch posts created by these mutual users
-            $posts = \App\Models\Post::with(['user.profile', 'user.kycVerification', 'media', 'loves', 'comments', 'stars', 'emojis'])
+            $postsQuery = Post::with(['user.profile', 'user.kycVerification', 'media', 'loves', 'comments', 'stars', 'emojis'])
                 ->where('status', 'active')
-                ->whereIn('user_id', $mutualUserIds)
-                ->latest()
-                ->paginate($perPage, ['*'], 'page', $page);
+                ->whereIn('user_id', $mutualUserIds);
 
-            $postsResource = \App\Http\Resources\Api\PostResource::collection($posts);
+            if ($request->has('category_id') && !empty($request->category_id)) {
+                $postsQuery->where('post_category_id', $request->category_id);
+            }
+
+            $posts = $postsQuery->latest()->paginate($perPage, ['*'], 'page', $page);
+
+            $postsResource = PostResource::collection($posts);
+
+            if ($request->input('page', 1) == 1) {
+                return $postsResource->additional([
+                    'status' => true,
+                    'message' => 'Community feed retrieved successfully!',
+                    'communities' => $this->getRecommendedCommunities(),
+                    'events' => $this->getRecommendedEvents(),
+                    'nearby_users' => $this->getNearbyUsers(),
+                    'matches' => $this->getMatches(),
+                ]);
+            }
 
             return $postsResource->additional([
                 'status' => true,
