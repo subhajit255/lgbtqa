@@ -151,6 +151,7 @@ Route::middleware(['auth:api', \App\Http\Middleware\UpdateUserLastActivity::clas
         Route::post('/', 'store');
         Route::delete('/{status}', 'destroy');
         Route::post('/{status}/react', 'react');
+        Route::get('/{status}/reactions', 'reactions');
         Route::post('/{status}/comments', 'addComment');
         Route::get('/{status}/comments', 'getComments');
         Route::get('/user/{user}', 'userStatuses');
@@ -201,6 +202,7 @@ Route::middleware(['auth:api', \App\Http\Middleware\UpdateUserLastActivity::clas
         Route::get('/suggested-communities', 'suggestedCommunities');
         Route::post('/create', 'store');
         Route::get('/members-list', 'membersList');
+        Route::get('/categories', 'categories');
         Route::get('/{uuid}', 'show');
         Route::post('/update/{uuid}', 'update');
         Route::delete('/delete/{uuid}', 'destroy');

@@ -248,6 +248,33 @@ class StatusController extends Controller
             'status' => true,
             'message' => 'Reaction added successfully',
             'data' => $reaction
+        ], 201);
+    }
+
+    /**
+     * @OA\Get(
+     *     path="/api/statuses/{id}/reactions",
+     *     summary="Get reactions for a specific status",
+     *     tags={"Statuses (Stories)"},
+     *     security={{"bearerAuth":{}}},
+     *     @OA\Parameter(name="id", in="path", required=true, @OA\Schema(type="integer")),
+     *     @OA\Response(
+     *         response=200,
+     *         description="Reactions retrieved successfully"
+     *     )
+     * )
+     */
+    public function reactions(Status $status)
+    {
+        $reactions = StatusReaction::with('user:id,uuid,name,image_path')
+            ->where('status_id', $status->id)
+            ->latest()
+            ->get();
+
+        return response()->json([
+            'status' => true,
+            'message' => 'Reactions retrieved successfully',
+            'data' => $reactions
         ]);
     }
 

@@ -183,16 +183,44 @@
 
                 <div data-kt-menu-trigger="{default: 'click', lg: 'hover'}" data-kt-menu-placement="right-start"
                     class="menu-item menu-lg-down-accordion menu-sub-lg-down-indention">
-                    <a href="{{ route('admin.community.list') }}">
-                        <span class="menu-link {{ sidebarActive(['admin.community.*']) }}">
+                    <div data-kt-menu-trigger="click"
+                        class="menu-item menu-accordion {{ sidebarOpen(['admin.community.*', 'admin.community-category.*']) }}">
+                        <span class="menu-link">
                             <span class="menu-icon">
                                 <span class="svg-icon svg-icon-2">
                                     <i class="fa-solid fa-users" style="color: #00bcd4;"></i>
                                 </span>
                             </span>
                             <span class="menu-title">Communities</span>
+                            <span class="menu-arrow"></span>
                         </span>
-                    </a>
+                        <div class="menu-sub menu-sub-accordion" style="">
+                            <div data-kt-menu-trigger="click" class="menu-item menu-accordion mb-1">
+                                <div class="menu-item">
+                                    <a href="{{ route('admin.community.list') }}">
+                                        <span class="menu-link {{ sidebarActive(['admin.community.*']) }}">
+                                            <span class="menu-icon">
+                                                <span class="svg-icon svg-icon-2">
+                                                    <i class="fa-solid fa-list" style="color: #00bcd4;"></i>
+                                                </span>
+                                            </span>
+                                            <span class="menu-title">All Communities</span>
+                                        </span>
+                                    </a>
+                                    <a href="{{ route('admin.community-category.list') }}">
+                                        <span class="menu-link {{ sidebarActive(['admin.community-category.*']) }}">
+                                            <span class="menu-icon">
+                                                <span class="svg-icon svg-icon-2">
+                                                    <i class="fa-solid fa-tags" style="color: #4caf50;"></i>
+                                                </span>
+                                            </span>
+                                            <span class="menu-title">Category Management</span>
+                                        </span>
+                                    </a>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
                 </div>
 
                 <!-- SYSTEM CONFIG & MASTER HEADER -->

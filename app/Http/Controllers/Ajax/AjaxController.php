@@ -157,6 +157,10 @@ class AjaxController extends BaseController
                     $data = Community::find($id);
                     $data->update(['is_active' => $request->status]);
                     break;
+                case 'community_categories':
+                    $data = \App\Models\CommunityCategory::find($request->uuid);
+                    $data->update(['is_active' => $request->status]);
+                    break;
 
             }
             if ($data) {

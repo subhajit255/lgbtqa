@@ -5,6 +5,7 @@ namespace App\Http\Controllers\Api;
 use \App\Http\Resources\PostResource;
 use \App\Models\Chat;
 use \App\Models\ChatParticipant;
+use \App\Models\CommunityCategory;
 use \App\Models\Post;
 use \App\Traits\FeedRecommendationsTrait;
 use App\Http\Controllers\Controller;
@@ -63,10 +64,83 @@ class CommunityApiController extends Controller
      *     )
      * )
      */
+    public function categories()
+    {
+        $categories = CommunityCategory::where('is_active', 1)->get();
+
+        return response()->json([
+            'status' => true,
+            'message' => 'Community categories retrieved successfully',
+            'data' => $categories
+        ]);
+    }
+
+    /**
+     * @OA\Get(
+     *     path="/api/communities",
+     *     summary="Get list of active communities",
+     *     tags={"Communities"},
+     *     security={{"bearerAuth":{}}},
+     *     @OA\Parameter(
+     *         name="search",
+     *         in="query",
+     *         description="Search communities by name, description or tags",
+     *         required=false,
+     *         @OA\Schema(type="string")
+     *     ),
+     *     @OA\Response(
+     *         response=200,
+     *         description="Communities retrieved successfully",
+     *         @OA\JsonContent(
+     *             @OA\Property(property="status", type="boolean", example=true),
+     *             @OA\Property(property="message", type="string", example="Communities retrieved successfully"),
+     *             @OA\Property(property="data", type="array",
+     *                 @OA\Items(
+     *                     type="object",
+     *                     @OA\Property(property="id", type="integer"),
+     *                     @OA\Property(property="uuid", type="string"),
+     *                     @OA\Property(property="name", type="string"),
+     *                     @OA\Property(property="description", type="string"),
+     *                     @OA\Property(property="image_path", type="string"),
+     *                     @OA\Property(property="type", type="string", example="public"),
+     *                     @OA\Property(property="tags", type="string"),
+     *                     @OA\Property(property="creator_id", type="integer"),
+     *                     @OA\Property(property="members_count", type="integer"),
+     *                     @OA\Property(property="user_membership_status", type="string", example="active"),
+     *                     @OA\Property(property="user_role", type="string", example="member"),
+     *                     @OA\Property(property="creator", type="object")
+     *                 )
+     *             )
+     *         )
+     *     )
+     * )
+     */
     public function index(Request $request)
     {
         $userId = auth()->id();
-        $query = Community::where('is_active', 1);
+        $user = auth()->user();
+        $query = Community::where('is_active', 1)->with('categories');
+
+        if ($request->filled('tab')) {
+            $tabOriginal = $request->input('tab');
+            $tabNormalized = strtolower(str_replace(' ', '_', $tabOriginal));
+
+            if ($tabNormalized === 'for_you') {
+                $query->inRandomOrder(); // Can be expanded to rule-based logic
+            } elseif ($tabNormalized === 'local') {
+                if ($user->profile && $user->profile->city_id) {
+                    $query->where('city_id', $user->profile->city_id);
+                } else {
+                    // Fallback to sort by distance if lat/lng available, or just random
+                    $query->inRandomOrder();
+                }
+            } else {
+                // Treat any other tab as a category ID or group name
+                $query->whereHas('categories', function ($q) use ($tabOriginal) {
+                    $q->where('group', $tabOriginal)->orWhere('community_categories.id', $tabOriginal);
+                });
+            }
+        }
 
         if ($request->filled('search')) {
             $search = $request->search;
@@ -227,6 +301,11 @@ class CommunityApiController extends Controller
             'type' => 'required|string|in:public,private',
             'tags' => 'nullable|string|max:255',
             'file' => 'required|image|mimes:jpeg,png,jpg,gif,svg|max:102400',
+            'categories' => 'nullable|array',
+            'categories.*' => 'exists:community_categories,id',
+            'lat' => 'nullable',
+            'lng' => 'nullable',
+            'city_id' => 'nullable|integer',
         ]);
 
         DB::beginTransaction();
@@ -240,7 +319,9 @@ class CommunityApiController extends Controller
                 "type" => $request->type,
                 "tags" => $request->tags,
                 "is_active" => 1,
-                // "community_hub_id" => $request->community_hub_id ?? $defaultCommunityHub->id ?? null,
+                "lat" => $request->lat ?? null,
+                "lng" => $request->lng ?? null,
+                "city_id" => $request->city_id ?? null,
             ];
 
             if ($request->hasFile('file')) {
@@ -252,6 +333,10 @@ class CommunityApiController extends Controller
                 }
             }
             $community = Community::create($postData);
+
+            if ($request->has('categories')) {
+                $community->categories()->sync($request->categories);
+            }
 
             $chat = Chat::create([
                 'is_group' => true,
@@ -366,6 +451,11 @@ class CommunityApiController extends Controller
             'type' => 'required|string|in:public,private',
             'tags' => 'nullable|string|max:255',
             'file' => 'nullable|image|mimes:jpeg,png,jpg,gif,svg|max:102400',
+            'categories' => 'nullable|array',
+            'categories.*' => 'exists:community_categories,id',
+            'lat' => 'nullable|numeric',
+            'lng' => 'nullable|numeric',
+            'city_id' => 'nullable|integer',
         ]);
 
         DB::beginTransaction();
@@ -377,6 +467,10 @@ class CommunityApiController extends Controller
                 "tags" => $request->tags,
             ];
 
+            if ($request->has('lat')) $postData['lat'] = $request->lat;
+            if ($request->has('lng')) $postData['lng'] = $request->lng;
+            if ($request->has('city_id')) $postData['city_id'] = $request->city_id;
+
             if ($request->hasFile('file')) {
                 $image = $request->file('file');
                 $fileName = uniqid() . '.' . $image->getClientOriginalExtension();
@@ -387,6 +481,11 @@ class CommunityApiController extends Controller
             }
 
             $community->update($postData);
+
+            if ($request->has('categories')) {
+                $community->categories()->sync($request->categories);
+            }
+
             DB::commit();
 
             return response()->json([
@@ -517,9 +616,19 @@ class CommunityApiController extends Controller
             'status' => $status,
             'role' => 'member'
         ]);
-
+        if (!$existing) {
+            Notification::create([
+                'user_id' => auth()->id(),
+                'title' => 'Join Community',
+                'description' => $status == 'active' ? 'You are now a member of the community "' . $community->name : 'Your request to join the community "' . $community->name . '" has been sent',
+                'type' => 'community_join',
+                'for' => 2,
+                'is_read' => 0,
+                'is_active' => 1,
+            ]);
+        }
         if ($status == 'active' && $community->chat) {
-            \App\Models\ChatParticipant::firstOrCreate([
+            ChatParticipant::firstOrCreate([
                 'chat_id' => $community->chat->id,
                 'user_id' => $userId,
             ], [
@@ -585,7 +694,7 @@ class CommunityApiController extends Controller
         }
 
         if ($community->chat) {
-            \App\Models\ChatParticipant::where('chat_id', $community->chat->id)
+            ChatParticipant::where('chat_id', $community->chat->id)
                 ->where('user_id', $userId)
                 ->delete();
         }
@@ -700,9 +809,17 @@ class CommunityApiController extends Controller
         }
 
         $member->update(['status' => 'active']);
-
+        Notification::create([
+            'user_id' => $member->user_id,
+            'title' => 'Join Community',
+            'description' => 'You are now a member of the community "' . $member->community->name,
+            'type' => 'community_join',
+            'for' => 2,
+            'is_read' => 0,
+            'is_active' => 1,
+        ]);
         if ($member->community->chat) {
-            \App\Models\ChatParticipant::firstOrCreate([
+            ChatParticipant::firstOrCreate([
                 'chat_id' => $member->community->chat->id,
                 'user_id' => $member->user_id,
             ], [
@@ -758,7 +875,15 @@ class CommunityApiController extends Controller
                 ->where('user_id', $member->user_id)
                 ->delete();
         }
-
+        Notification::create([
+            'user_id' => $member->user_id,
+            'title' => 'Join Community',
+            'description' => 'Your request to join the community "' . $member->community->name . '" has been rejected.',
+            'type' => 'community_join',
+            'for' => 2,
+            'is_read' => 0,
+            'is_active' => 1,
+        ]);
         $member->delete();
 
         return response()->json([
@@ -1011,11 +1136,19 @@ class CommunityApiController extends Controller
                             'role' => 'member'
                         ]);
                     }
+                    Notification::create([
+                        'user_id' => $userId,
+                        'title' => 'Community Member Added',
+                        'description' => 'You have been added to the community "' . $community->name,
+                        'type' => 'community_member_added',
+                        'for' => 2,
+                        'is_read' => 0,
+                        'is_active' => 1,
+                    ]);
 
                     $addedMembers[] = $userId;
                 }
             }
-
             return $this->responseJson(true, 200, 'Members added successfully', $addedMembers);
         } catch (\Exception $e) {
             logger($e->getMessage() . '---' . $e->getLine() . '---' . $e->getFile());
@@ -1073,6 +1206,13 @@ class CommunityApiController extends Controller
 
             if ($request->has('category_id') && !empty($request->category_id)) {
                 $postsQuery->where('post_category_id', $request->category_id);
+            }
+
+            if ($request->filled('search')) {
+                $search = $request->search;
+                $postsQuery->whereHas('user', function ($q) use ($search) {
+                    $q->where('name', 'like', "%{$search}%");
+                });
             }
 
             $posts = $postsQuery->latest()->paginate($perPage, ['*'], 'page', $page);

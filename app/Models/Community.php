@@ -57,4 +57,9 @@ class Community extends Model
     {
         return $this->hasOne(Chat::class);
     }
+
+    public function categories()
+    {
+        return $this->belongsToMany(CommunityCategory::class);
+    }
 }

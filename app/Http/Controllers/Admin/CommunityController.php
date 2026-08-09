@@ -3,6 +3,7 @@
 namespace App\Http\Controllers\Admin;
 
 use App\Models\Community;
+use App\Models\CommunityCategory;
 use App\Models\CommunityMember;
 use App\Models\User;
 use App\Traits\UploadAble;
@@ -35,6 +36,8 @@ class CommunityController extends BaseController
                 'creator_id' => 'required|exists:users,id',
                 'type' => 'required|string|in:public,private',
                 'tags' => 'nullable|string|max:255',
+                'categories' => 'nullable|array',
+                'categories.*' => 'exists:community_categories,id',
             ];
 
             if (empty($id)) {
@@ -69,6 +72,10 @@ class CommunityController extends BaseController
 
                 $community = Community::updateOrCreate(['id' => $id], $postData);
 
+                if ($request->has('categories')) {
+                    $community->categories()->sync($request->categories);
+                }
+
                 // Ensure the creator is registered as an active creator member
                 CommunityMember::updateOrCreate(
                     [
@@ -102,8 +109,9 @@ class CommunityController extends BaseController
         }
 
         $users = User::orderBy('name')->get();
+        $categories = CommunityCategory::where('is_active', 1)->get();
 
-        return view('admin.community.add', compact('details', 'users'));
+        return view('admin.community.add', compact('details', 'users', 'categories'));
     }
 
     public function view($uuid)

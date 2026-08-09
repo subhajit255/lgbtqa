@@ -181,6 +181,12 @@ Route::as('admin.')->group(function () {
             Route::any('add/{uuid?}', 'add')->name('add');
         });
 
+        Route::controller(\App\Http\Controllers\Admin\CommunityCategoryController::class)->as('community-category.')->prefix('community-category')->group(function () {
+            Route::get('list', 'index')->name('list');
+            Route::any('add/{id?}', 'add')->name('add');
+            Route::get('delete/{id}', 'delete')->name('delete');
+        });
+
         Route::controller(\App\Http\Controllers\Admin\CommunityController::class)->as('community.')->prefix('community')->group(function () {
             Route::get('list', 'index')->name('list');
             Route::any('add/{uuid?}', 'add')->name('add');

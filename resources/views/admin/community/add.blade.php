@@ -106,10 +106,22 @@
 
                                 <div class="col-md-6">
                                     <div class="fv-row mb-6">
-                                        <label class="fw-bold fs-6 mb-2">Tags / Category Badges (Comma separated)</label>
-                                        <input type="text" name="tags" class="form-control form-control-solid" placeholder="Lesbian Community, Queer Circle" value="{{ $details->tags ?? '' }}" />
+                                        <label class="fw-bold fs-6 mb-2">Community Categories (Groups)</label>
+                                        <select name="categories[]" class="form-select form-select-solid" data-control="select2" data-placeholder="Select Categories" data-allow-clear="true" multiple>
+                                            @foreach($categories as $cat)
+                                                <option value="{{ $cat->id }}" 
+                                                    {{ isset($details) && $details->categories->contains($cat->id) ? 'selected' : '' }}>
+                                                    {{ ucfirst($cat->group) }}
+                                                </option>
+                                            @endforeach
+                                        </select>
                                     </div>
                                 </div>
+                            </div>
+
+                            <div class="fv-row mb-8">
+                                <label class="fw-bold fs-6 mb-2">Tags / Search Keywords (Comma separated)</label>
+                                <input type="text" name="tags" class="form-control form-control-solid" placeholder="Lesbian Community, Queer Circle" value="{{ $details->tags ?? '' }}" />
                             </div>
 
                             <div class="fv-row mb-8">
