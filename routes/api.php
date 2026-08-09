@@ -142,6 +142,7 @@ Route::middleware(['auth:api', \App\Http\Middleware\UpdateUserLastActivity::clas
         Route::post('/swipe', 'swipe');
         Route::post('/icebreaker', 'sendIcebreaker');
         Route::get('/matches', 'matches');
+        Route::get('/user-details/{id}', 'userDetails');
     });
 
     // Status Routes
