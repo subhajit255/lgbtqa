@@ -2,10 +2,11 @@
 
 namespace App\Http\Controllers\Api;
 
-use \App\Http\Resources\Api\PostResource;
+use \App\Http\Resources\PostResource;
 use \App\Models\Chat;
 use \App\Models\ChatParticipant;
 use \App\Models\Post;
+use \App\Traits\FeedRecommendationsTrait;
 use App\Http\Controllers\Controller;
 use App\Http\Resources\Api\User\UserResource;
 use App\Models\Community;
@@ -21,7 +22,7 @@ use Illuminate\Support\Facades\DB;
 
 class CommunityApiController extends Controller
 {
-    use UploadAble, \App\Traits\FeedRecommendationsTrait;
+    use UploadAble, FeedRecommendationsTrait;
 
     /**
      * @OA\Get(
