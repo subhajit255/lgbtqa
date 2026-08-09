@@ -287,6 +287,15 @@ class CommunityApiController extends Controller
      */
     public function store(Request $request)
     {
+        if ($request->has('categories')) {
+            $categories = $request->categories;
+            if (is_string($categories)) {
+                $request->merge(['categories' => explode(',', $categories)]);
+            } elseif (is_array($categories) && count($categories) == 1 && is_string($categories[0]) && strpos($categories[0], ',') !== false) {
+                $request->merge(['categories' => explode(',', $categories[0])]);
+            }
+        }
+
         $request->validate([
             'name' => 'required|string|max:255',
             'description' => 'nullable|string',
@@ -440,6 +449,15 @@ class CommunityApiController extends Controller
                 'status' => false,
                 'message' => 'You are not authorized to update this community.'
             ], 403);
+        }
+
+        if ($request->has('categories')) {
+            $categories = $request->categories;
+            if (is_string($categories)) {
+                $request->merge(['categories' => explode(',', $categories)]);
+            } elseif (is_array($categories) && count($categories) == 1 && is_string($categories[0]) && strpos($categories[0], ',') !== false) {
+                $request->merge(['categories' => explode(',', $categories[0])]);
+            }
         }
 
         $request->validate([
