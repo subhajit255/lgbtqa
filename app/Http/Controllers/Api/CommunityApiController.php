@@ -8,6 +8,7 @@ use \App\Models\ChatParticipant;
 use \App\Models\CommunityCategory;
 use \App\Models\Post;
 use \App\Traits\FeedRecommendationsTrait;
+use \Illuminate\Support\Facades\Http;
 use App\Http\Controllers\Controller;
 use App\Http\Resources\Api\User\UserResource;
 use App\Models\Community;
@@ -112,8 +113,8 @@ class CommunityApiController extends Controller
             if ($tabNormalized === 'for_you') {
                 $query->inRandomOrder(); // Can be expanded to rule-based logic
             } elseif ($tabNormalized === 'local') {
-                if ($user->profile && $user->profile->city_id) {
-                    $query->where('city_id', $user->profile->city_id);
+                if ($request->has('city_name') && !empty($request->city_name)) {
+                    $query->where('city_name', $request->city_name);
                 } else {
                     // Fallback to sort by distance if lat/lng available, or just random
                     $query->inRandomOrder();
@@ -124,6 +125,10 @@ class CommunityApiController extends Controller
                     $q->where('group', $tabOriginal)->orWhere('community_categories.id', $tabOriginal);
                 });
             }
+        }
+
+        if ($request->has('city_name') && !empty($request->city_name)) {
+            $query->where('city_name', $request->city_name);
         }
 
         if ($request->filled('search')) {
@@ -265,8 +270,7 @@ class CommunityApiController extends Controller
      *                 @OA\Property(property="file", type="string", format="binary", description="Community Banner Image"),
      *                 @OA\Property(property="categories[]", type="array", @OA\Items(type="integer"), description="Array of category IDs"),
      *                 @OA\Property(property="lat", type="string"),
-     *                 @OA\Property(property="lng", type="string"),
-     *                 @OA\Property(property="city_id", type="integer")
+     *                 @OA\Property(property="lng", type="string")
      *             )
      *         )
      *     ),
@@ -293,7 +297,6 @@ class CommunityApiController extends Controller
             'categories.*' => 'exists:community_categories,id',
             'lat' => 'nullable',
             'lng' => 'nullable',
-            'city_id' => 'nullable|integer',
         ]);
 
         DB::beginTransaction();
@@ -309,8 +312,11 @@ class CommunityApiController extends Controller
                 "is_active" => 1,
                 "lat" => $request->lat ?? null,
                 "lng" => $request->lng ?? null,
-                "city_id" => $request->city_id ?? null,
             ];
+
+            if ($request->has('lat') && $request->has('lng')) {
+                $postData['city_name'] = $this->getCityNameFromLatLng($request->lat, $request->lng);
+            }
 
             if ($request->hasFile('file')) {
                 $image = $request->file('file');
@@ -401,8 +407,7 @@ class CommunityApiController extends Controller
      *                 @OA\Property(property="file", type="string", format="binary", description="Community Banner Image"),
      *                 @OA\Property(property="categories[]", type="array", @OA\Items(type="integer"), description="Array of category IDs"),
      *                 @OA\Property(property="lat", type="string"),
-     *                 @OA\Property(property="lng", type="string"),
-     *                 @OA\Property(property="city_id", type="integer")
+     *                 @OA\Property(property="lng", type="string")
      *             )
      *         )
      *     ),
@@ -447,7 +452,6 @@ class CommunityApiController extends Controller
             'categories.*' => 'exists:community_categories,id',
             'lat' => 'nullable|numeric',
             'lng' => 'nullable|numeric',
-            'city_id' => 'nullable|integer',
         ]);
 
         DB::beginTransaction();
@@ -461,7 +465,10 @@ class CommunityApiController extends Controller
 
             if ($request->has('lat')) $postData['lat'] = $request->lat;
             if ($request->has('lng')) $postData['lng'] = $request->lng;
-            if ($request->has('city_id')) $postData['city_id'] = $request->city_id;
+
+            if ($request->has('lat') && $request->has('lng')) {
+                $postData['city_name'] = $this->getCityNameFromLatLng($request->lat, $request->lng);
+            }
 
             if ($request->hasFile('file')) {
                 $image = $request->file('file');
@@ -1162,16 +1169,16 @@ class CommunityApiController extends Controller
      *         @OA\Schema(type="integer")
      *     ),
      *     @OA\Parameter(
-     *         name="category_id",
-     *         in="query",
-     *         description="Filter posts by category ID",
-     *         required=false,
-     *         @OA\Schema(type="integer")
-     *     ),
-     *     @OA\Parameter(
      *         name="search",
      *         in="query",
      *         description="Filter posts by user name",
+     *         required=false,
+     *         @OA\Schema(type="string")
+     *     ),
+     *     @OA\Parameter(
+     *         name="city_name",
+     *         in="query",
+     *         description="Filter communities by city name",
      *         required=false,
      *         @OA\Schema(type="string")
      *     ),
@@ -1214,6 +1221,13 @@ class CommunityApiController extends Controller
                 });
             }
 
+            if ($request->filled('city_name')) {
+                $cityName = $request->city_name;
+                $postsQuery->whereHas('community', function ($q) use ($cityName) {
+                    $q->where('city_name', $cityName);
+                });
+            }
+
             $posts = $postsQuery->latest()->paginate($perPage, ['*'], 'page', $page);
 
             $postsResource = PostResource::collection($posts);
@@ -1237,5 +1251,42 @@ class CommunityApiController extends Controller
             logger($e->getMessage() . '---' . $e->getLine() . '---' . $e->getFile());
             return $this->responseJson(false, 500, 'Something went wrong', $e->getMessage());
         }
+    }
+    private function getCityNameFromLatLng($lat, $lng)
+    {
+        if (!$lat || !$lng) return null;
+
+        $response = Http::get(config('constants.GEOLOCATION_API'), [
+            'latlng' => $lat . ',' . $lng,
+            'key' => config('constants.GEOLOCATION_API_KEY')
+        ]);
+
+        if ($response->successful()) {
+            $data = $response->json();
+            if (!empty($data['results'])) {
+                foreach ($data['results'] as $result) {
+                    if (isset($result['address_components'])) {
+                        foreach ($result['address_components'] as $component) {
+                            if (in_array('locality', $component['types'])) {
+                                logger("city name : " . $component['long_name']);
+                                return $component['long_name'];
+                            }
+                        }
+                    }
+                }
+                foreach ($data['results'] as $result) {
+                    if (isset($result['address_components'])) {
+                        foreach ($result['address_components'] as $component) {
+                            if (in_array('administrative_area_level_2', $component['types'])) {
+                                logger("city name : " . $component['long_name']);
+                                return $component['long_name'];
+                            }
+                        }
+                    }
+                }
+            }
+        }
+
+        return null;
     }
 }

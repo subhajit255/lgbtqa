@@ -3266,9 +3266,6 @@
                                     },
                                     "lng": {
                                         "type": "string"
-                                    },
-                                    "city_id": {
-                                        "type": "integer"
                                     }
                                 },
                                 "type": "object"
@@ -3370,9 +3367,6 @@
                                     },
                                     "lng": {
                                         "type": "string"
-                                    },
-                                    "city_id": {
-                                        "type": "integer"
                                     }
                                 },
                                 "type": "object"
@@ -3776,18 +3770,18 @@
                         }
                     },
                     {
-                        "name": "category_id",
-                        "in": "query",
-                        "description": "Filter posts by category ID",
-                        "required": false,
-                        "schema": {
-                            "type": "integer"
-                        }
-                    },
-                    {
                         "name": "search",
                         "in": "query",
                         "description": "Filter posts by user name",
+                        "required": false,
+                        "schema": {
+                            "type": "string"
+                        }
+                    },
+                    {
+                        "name": "city_name",
+                        "in": "query",
+                        "description": "Filter communities by city name",
                         "required": false,
                         "schema": {
                             "type": "string"
