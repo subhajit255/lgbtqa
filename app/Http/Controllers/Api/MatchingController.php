@@ -24,6 +24,13 @@ class MatchingController extends Controller
      *         required=false,
      *         @OA\Schema(type="string", enum={"for_you", "nearby"}, default="for_you")
      *     ),
+     *     @OA\Parameter(
+     *         name="page",
+     *         in="query",
+     *         description="Page number for pagination",
+     *         required=false,
+     *         @OA\Schema(type="integer", default=1)
+     *     ),
      *     @OA\Response(
      *         response=200,
      *         description="Successful operation",
@@ -72,7 +79,7 @@ class MatchingController extends Controller
             $query->inRandomOrder();
         }
 
-        $users = $query->paginate(15);
+        $users = $query->paginate(10);
 
         // Keep only up to 3 images per user
         $users->getCollection()->transform(function ($user) {

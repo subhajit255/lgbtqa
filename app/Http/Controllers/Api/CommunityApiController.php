@@ -1020,4 +1020,60 @@ class CommunityApiController extends Controller
             return $this->responseJson(false, 500, 'Something went wrong', $e->getMessage());
         }
     }
+
+    /**
+     * @OA\Get(
+     *     path="/api/communities/feed",
+     *     summary="Get community feed posts from mutual users",
+     *     tags={"Communities"},
+     *     security={{"bearerAuth":{}}},
+     *     @OA\Parameter(
+     *         name="per_page",
+     *         in="query",
+     *         description="Number of posts per page",
+     *         required=false,
+     *         @OA\Schema(type="integer")
+     *     ),
+     *     @OA\Response(
+     *         response=200,
+     *         description="Community feed retrieved successfully"
+     *     )
+     * )
+     */
+    public function communityFeed(Request $request)
+    {
+        try {
+            $userId = auth()->id();
+            $perPage = $request->input('per_page', 15);
+            $page = $request->input('page_number') ?? $request->input('page_no') ?? $request->input('page') ?? 1;
+
+            // Get communities where the current user is an active member
+            $userCommunities = CommunityMember::where('user_id', $userId)
+                ->where('status', 'active')
+                ->pluck('community_id');
+
+            // Get users who are active members in any of those communities
+            $mutualUserIds = CommunityMember::whereIn('community_id', $userCommunities)
+                ->where('status', 'active')
+                ->pluck('user_id')
+                ->unique();
+
+            // Fetch posts created by these mutual users
+            $posts = \App\Models\Post::with(['user.profile', 'user.kycVerification', 'media', 'loves', 'comments', 'stars', 'emojis'])
+                ->where('status', 'active')
+                ->whereIn('user_id', $mutualUserIds)
+                ->latest()
+                ->paginate($perPage, ['*'], 'page', $page);
+
+            $postsResource = \App\Http\Resources\Api\PostResource::collection($posts);
+
+            return $postsResource->additional([
+                'status' => true,
+                'message' => 'Community feed retrieved successfully!'
+            ]);
+        } catch (\Exception $e) {
+            logger($e->getMessage() . '---' . $e->getLine() . '---' . $e->getFile());
+            return $this->responseJson(false, 500, 'Something went wrong', $e->getMessage());
+        }
+    }
 }

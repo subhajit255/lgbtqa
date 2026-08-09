@@ -195,6 +195,7 @@ Route::middleware(['auth:api', \App\Http\Middleware\UpdateUserLastActivity::clas
     // Community Routes
     Route::controller(CommunityApiController::class)->prefix('communities')->group(function () {
         Route::get('/', 'index');
+        Route::get('/feed', 'communityFeed');
         Route::get('/trending', 'trendingCommunities');
         Route::get('/suggested-communities', 'suggestedCommunities');
         Route::post('/create', 'store');
