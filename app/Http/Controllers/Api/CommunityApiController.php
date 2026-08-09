@@ -26,38 +26,22 @@ class CommunityApiController extends Controller
 
     /**
      * @OA\Get(
-     *     path="/api/communities",
-     *     summary="Get list of active communities",
+     *     path="/api/communities/categories",
+     *     summary="Get list of active community categories",
      *     tags={"Communities"},
      *     security={{"bearerAuth":{}}},
-     *     @OA\Parameter(
-     *         name="search",
-     *         in="query",
-     *         description="Search communities by name, description or tags",
-     *         required=false,
-     *         @OA\Schema(type="string")
-     *     ),
      *     @OA\Response(
      *         response=200,
-     *         description="Communities retrieved successfully",
+     *         description="Community categories retrieved successfully",
      *         @OA\JsonContent(
      *             @OA\Property(property="status", type="boolean", example=true),
-     *             @OA\Property(property="message", type="string", example="Communities retrieved successfully"),
+     *             @OA\Property(property="message", type="string", example="Community categories retrieved successfully"),
      *             @OA\Property(property="data", type="array",
      *                 @OA\Items(
      *                     type="object",
      *                     @OA\Property(property="id", type="integer"),
-     *                     @OA\Property(property="uuid", type="string"),
-     *                     @OA\Property(property="name", type="string"),
-     *                     @OA\Property(property="description", type="string"),
-     *                     @OA\Property(property="image_path", type="string"),
-     *                     @OA\Property(property="type", type="string", example="public"),
-     *                     @OA\Property(property="tags", type="string"),
-     *                     @OA\Property(property="creator_id", type="integer"),
-     *                     @OA\Property(property="members_count", type="integer"),
-     *                     @OA\Property(property="user_membership_status", type="string", example="active"),
-     *                     @OA\Property(property="user_role", type="string", example="member"),
-     *                     @OA\Property(property="creator", type="object")
+     *                     @OA\Property(property="group", type="string", example="identity"),
+     *                     @OA\Property(property="is_active", type="integer", example=1)
      *                 )
      *             )
      *         )

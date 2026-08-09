@@ -3012,6 +3012,61 @@
                 ]
             }
         },
+        "/api/communities/categories": {
+            "get": {
+                "tags": [
+                    "Communities"
+                ],
+                "summary": "Get list of active community categories",
+                "operationId": "9d743f63a2ee11f2a2afffafadc06cfb",
+                "responses": {
+                    "200": {
+                        "description": "Community categories retrieved successfully",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "properties": {
+                                        "status": {
+                                            "type": "boolean",
+                                            "example": true
+                                        },
+                                        "message": {
+                                            "type": "string",
+                                            "example": "Community categories retrieved successfully"
+                                        },
+                                        "data": {
+                                            "type": "array",
+                                            "items": {
+                                                "properties": {
+                                                    "id": {
+                                                        "type": "integer"
+                                                    },
+                                                    "group": {
+                                                        "type": "string",
+                                                        "example": "identity"
+                                                    },
+                                                    "is_active": {
+                                                        "type": "integer",
+                                                        "example": 1
+                                                    }
+                                                },
+                                                "type": "object"
+                                            }
+                                        }
+                                    },
+                                    "type": "object"
+                                }
+                            }
+                        }
+                    }
+                },
+                "security": [
+                    {
+                        "bearerAuth": []
+                    }
+                ]
+            }
+        },
         "/api/communities": {
             "get": {
                 "tags": [
@@ -3662,6 +3717,45 @@
                     },
                     "500": {
                         "description": "Something went wrong"
+                    }
+                },
+                "security": [
+                    {
+                        "bearerAuth": []
+                    }
+                ]
+            }
+        },
+        "/api/communities/feed": {
+            "get": {
+                "tags": [
+                    "Communities"
+                ],
+                "summary": "Get community feed posts from mutual users",
+                "operationId": "a6a408f49d070c586f50abedb70a7c9b",
+                "parameters": [
+                    {
+                        "name": "per_page",
+                        "in": "query",
+                        "description": "Number of posts per page",
+                        "required": false,
+                        "schema": {
+                            "type": "integer"
+                        }
+                    },
+                    {
+                        "name": "category_id",
+                        "in": "query",
+                        "description": "Filter posts by category ID",
+                        "required": false,
+                        "schema": {
+                            "type": "integer"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "Community feed retrieved successfully"
                     }
                 },
                 "security": [
@@ -4716,6 +4810,16 @@
                                 "nearby"
                             ]
                         }
+                    },
+                    {
+                        "name": "page",
+                        "in": "query",
+                        "description": "Page number for pagination",
+                        "required": false,
+                        "schema": {
+                            "type": "integer",
+                            "default": 1
+                        }
                     }
                 ],
                 "responses": {
@@ -4906,6 +5010,55 @@
                                 }
                             }
                         }
+                    }
+                },
+                "security": [
+                    {
+                        "bearerAuth": []
+                    }
+                ]
+            }
+        },
+        "/api/matching/user-details/{id}": {
+            "get": {
+                "tags": [
+                    "Matching"
+                ],
+                "summary": "Get user details by user ID",
+                "operationId": "231624eff2846588ffb091b966b30eae",
+                "parameters": [
+                    {
+                        "name": "id",
+                        "in": "path",
+                        "description": "User ID",
+                        "required": true,
+                        "schema": {
+                            "type": "integer"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "Successful operation",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "properties": {
+                                        "status": {
+                                            "type": "string",
+                                            "example": "success"
+                                        },
+                                        "data": {
+                                            "type": "object"
+                                        }
+                                    },
+                                    "type": "object"
+                                }
+                            }
+                        }
+                    },
+                    "404": {
+                        "description": "User not found"
                     }
                 },
                 "security": [
@@ -6294,6 +6447,35 @@
                 "responses": {
                     "200": {
                         "description": "Reaction updated/added successfully"
+                    }
+                },
+                "security": [
+                    {
+                        "bearerAuth": []
+                    }
+                ]
+            }
+        },
+        "/api/statuses/{id}/reactions": {
+            "get": {
+                "tags": [
+                    "Statuses (Stories)"
+                ],
+                "summary": "Get reactions for a specific status",
+                "operationId": "878fe7b8c74d08ca523a78308c02f4de",
+                "parameters": [
+                    {
+                        "name": "id",
+                        "in": "path",
+                        "required": true,
+                        "schema": {
+                            "type": "integer"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "Reactions retrieved successfully"
                     }
                 },
                 "security": [
