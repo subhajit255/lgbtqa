@@ -3253,6 +3253,22 @@
                                         "description": "Community Banner Image",
                                         "type": "string",
                                         "format": "binary"
+                                    },
+                                    "categories[]": {
+                                        "description": "Array of category IDs",
+                                        "type": "array",
+                                        "items": {
+                                            "type": "integer"
+                                        }
+                                    },
+                                    "lat": {
+                                        "type": "string"
+                                    },
+                                    "lng": {
+                                        "type": "string"
+                                    },
+                                    "city_id": {
+                                        "type": "integer"
                                     }
                                 },
                                 "type": "object"
@@ -3341,6 +3357,22 @@
                                         "description": "Community Banner Image",
                                         "type": "string",
                                         "format": "binary"
+                                    },
+                                    "categories[]": {
+                                        "description": "Array of category IDs",
+                                        "type": "array",
+                                        "items": {
+                                            "type": "integer"
+                                        }
+                                    },
+                                    "lat": {
+                                        "type": "string"
+                                    },
+                                    "lng": {
+                                        "type": "string"
+                                    },
+                                    "city_id": {
+                                        "type": "integer"
                                     }
                                 },
                                 "type": "object"
@@ -3750,6 +3782,15 @@
                         "required": false,
                         "schema": {
                             "type": "integer"
+                        }
+                    },
+                    {
+                        "name": "search",
+                        "in": "query",
+                        "description": "Filter posts by user name",
+                        "required": false,
+                        "schema": {
+                            "type": "string"
                         }
                     }
                 ],

@@ -262,7 +262,11 @@ class CommunityApiController extends Controller
      *                 @OA\Property(property="description", type="string"),
      *                 @OA\Property(property="type", type="string", enum={"public", "private"}),
      *                 @OA\Property(property="tags", type="string", description="Comma separated tags"),
-     *                 @OA\Property(property="file", type="string", format="binary", description="Community Banner Image")
+     *                 @OA\Property(property="file", type="string", format="binary", description="Community Banner Image"),
+     *                 @OA\Property(property="categories[]", type="array", @OA\Items(type="integer"), description="Array of category IDs"),
+     *                 @OA\Property(property="lat", type="string"),
+     *                 @OA\Property(property="lng", type="string"),
+     *                 @OA\Property(property="city_id", type="integer")
      *             )
      *         )
      *     ),
@@ -394,7 +398,11 @@ class CommunityApiController extends Controller
      *                 @OA\Property(property="description", type="string"),
      *                 @OA\Property(property="type", type="string", enum={"public", "private"}),
      *                 @OA\Property(property="tags", type="string", description="Comma separated tags"),
-     *                 @OA\Property(property="file", type="string", format="binary", description="Community Banner Image")
+     *                 @OA\Property(property="file", type="string", format="binary", description="Community Banner Image"),
+     *                 @OA\Property(property="categories[]", type="array", @OA\Items(type="integer"), description="Array of category IDs"),
+     *                 @OA\Property(property="lat", type="string"),
+     *                 @OA\Property(property="lng", type="string"),
+     *                 @OA\Property(property="city_id", type="integer")
      *             )
      *         )
      *     ),
@@ -1159,6 +1167,13 @@ class CommunityApiController extends Controller
      *         description="Filter posts by category ID",
      *         required=false,
      *         @OA\Schema(type="integer")
+     *     ),
+     *     @OA\Parameter(
+     *         name="search",
+     *         in="query",
+     *         description="Filter posts by user name",
+     *         required=false,
+     *         @OA\Schema(type="string")
      *     ),
      *     @OA\Response(
      *         response=200,
