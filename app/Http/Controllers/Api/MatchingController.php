@@ -47,7 +47,7 @@ class MatchingController extends Controller
 
         $excludedIds = array_merge([$user->id], $swipedUserIds, $blockedUserIds);
 
-        $query = User::with(['profile', 'userLocation'])
+        $query = User::with(['profile', 'userLocation', 'galleries'])
             ->whereNotIn('id', $excludedIds);
 
         if ($tab === 'nearby') {
@@ -72,7 +72,15 @@ class MatchingController extends Controller
             $query->inRandomOrder();
         }
 
-        $users = $query->limit(5)->get();
+        $users = $query->paginate(15);
+
+        // Keep only up to 3 images per user
+        $users->getCollection()->transform(function ($user) {
+            if ($user->relationLoaded('galleries')) {
+                $user->setRelation('galleries', $user->galleries->take(3)->values());
+            }
+            return $user;
+        });
 
         return response()->json([
             'status' => 'success',
