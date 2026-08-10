@@ -1194,11 +1194,11 @@ class CommunityApiController extends Controller
      *         @OA\Schema(type="string")
      *     ),
      *     @OA\Parameter(
-     *         name="city_name",
+     *         name="category_id",
      *         in="query",
-     *         description="Filter communities by city name",
+     *         description="Filter posts by category",
      *         required=false,
-     *         @OA\Schema(type="string")
+     *         @OA\Schema(type="integer")
      *     ),
      *     @OA\Response(
      *         response=200,
@@ -1239,12 +1239,6 @@ class CommunityApiController extends Controller
                 });
             }
 
-            if ($request->filled('city_name')) {
-                $cityName = $request->city_name;
-                $postsQuery->whereHas('community', function ($q) use ($cityName) {
-                    $q->where('city_name', $cityName);
-                });
-            }
 
             $posts = $postsQuery->latest()->paginate($perPage, ['*'], 'page', $page);
 

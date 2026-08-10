@@ -4,6 +4,7 @@ namespace App\Http\Controllers\Api;
 
 use App\Http\Controllers\BaseController;
 use App\Models\FriendRequest;
+use App\Models\Notification;
 use App\Models\User;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
@@ -65,7 +66,15 @@ class FriendController extends BaseController
             'status' => 'pending',
             'met_in_real_life' => $request->boolean('met_in_real_life', false)
         ]);
-
+        Notification::create([
+            'user_id' => $user_id,
+            'title' => 'Friend Request',
+            'description' => 'You have received a friend request from "' . $user->name . '"',
+            'type' => 'friend_request',
+            'for' => 2,
+            'is_read' => 0,
+            'is_active' => 1,
+        ]);
         return $this->responseJson(true, 200, 'Friend request sent successfully.', []);
     }
 
@@ -121,8 +130,16 @@ class FriendController extends BaseController
 
         $friendRequest->status = 'accepted';
         $friendRequest->save();
-
-        return $this->responseJson(true, 200, 'Friend request accepted.', []);
+        Notification::create([
+            'user_id' => $friendRequest->user_id,
+            'title' => 'Friend Request Accepted',
+            'description' => $user->name . ' has accepted your friend request.',
+            'type' => 'friend_request_accepted',
+            'for' => 2,
+            'is_read' => 0,
+            'is_active' => 1,
+        ]);
+        return  $this->responseJson(true, 200, 'Friend request accepted.', []);
     }
 
     /**
@@ -153,7 +170,15 @@ class FriendController extends BaseController
 
         $friendRequest->status = 'rejected';
         $friendRequest->save();
-
+        Notification::create([
+            'user_id' => $friendRequest->user_id,
+            'title' => 'Friend Request Accepted',
+            'description' => $user->name . ' has rejected your friend request.',
+            'type' => 'friend_request_rejected',
+            'for' => 2,
+            'is_read' => 0,
+            'is_active' => 1,
+        ]);
         return $this->responseJson(true, 200, 'Friend request rejected.', []);
     }
     /**
