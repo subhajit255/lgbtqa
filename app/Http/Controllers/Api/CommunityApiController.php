@@ -660,6 +660,7 @@ class CommunityApiController extends Controller
 
             Notification::create([
                 'user_id' => auth()->id(),
+                'referenced_user_id' => $community->creator_id,
                 'title' => 'Join Community',
                 'description' => $status == 'active' ? 'You are now a member of the community "' . $community->name . '"' : 'Your request to join the community "' . $community->name . '" has been sent',
                 'type' => 'community_join',
@@ -673,6 +674,7 @@ class CommunityApiController extends Controller
             if ($community->creator_id != auth()->id()) {
                 Notification::create([
                     'user_id' => $community->creator_id,
+                    'referenced_user_id' => auth()->id(),
                     'title' => $status == 'active' ? 'New Community Member' : 'Community Join Request',
                     'description' => $status == 'active' ? $userName . ' has joined your community "' . $community->name . '"' : $userName . ' has requested to join your community "' . $community->name . '"',
                     'type' => 'community_join_request',
@@ -868,13 +870,14 @@ class CommunityApiController extends Controller
         $member->update(['status' => 'active']);
         Notification::create([
             'user_id' => $member->user_id,
+            'referenced_user_id' => auth()->id(),
             'title' => 'Join Community',
             'description' => 'You are now a member of the community "' . $member->community->name . '"',
             'type' => 'community_join',
             'for' => 2,
             'is_read' => 0,
             'is_active' => 1,
-            'redirection_id' => $community->id ?? null,
+            'redirection_id' => $member->community_id,
             'is_community' => 1
         ]);
         if ($member->community->chat) {
@@ -936,12 +939,15 @@ class CommunityApiController extends Controller
         }
         Notification::create([
             'user_id' => $member->user_id,
+            'referenced_user_id' => auth()->id(),
             'title' => 'Join Community',
             'description' => 'Your request to join the community "' . $member->community->name . '" has been rejected.',
             'type' => 'community_join',
             'for' => 2,
             'is_read' => 0,
             'is_active' => 1,
+            'redirection_id' => $member->community_id,
+            'is_community' => 1
         ]);
         $member->delete();
 
@@ -1197,8 +1203,9 @@ class CommunityApiController extends Controller
                     }
                     Notification::create([
                         'user_id' => $userId,
+                        'referenced_user_id' => auth()->id(),
                         'title' => 'Community Member Added',
-                        'description' => 'You have been added to the community "' . $community->name,
+                        'description' => 'You have been added to the community "' . $community->name . '"',
                         'type' => 'community_member_added',
                         'for' => 2,
                         'is_read' => 0,

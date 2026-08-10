@@ -41,7 +41,8 @@ class NotificationController extends BaseController
             $user = Auth::user();
             $statusFilter = $request->query('status', 'all');
 
-            $query = Notification::where('user_id', $user->id)
+            $query = Notification::with('referencedUser')
+                ->where('user_id', $user->id)
                 ->where('is_active', 1)
                 ->latest(); // Descending order by created_at
 
@@ -55,6 +56,24 @@ class NotificationController extends BaseController
             $page = $request->input('page_number') ?? $request->input('page_no') ?? $request->input('page') ?? 1;
 
             $notificationsPaginator = $query->paginate($perPage, ['*'], 'page_number', $page);
+
+            $notificationsPaginator->through(function ($notification) {
+                if ($notification->referenced_user_id && $notification->referencedUser) {
+                    $notification->reference_user_details = [
+                        'id' => $notification->referencedUser->id,
+                        'name' => $notification->referencedUser->name,
+                        'username' => $notification->referencedUser->username,
+                        'profile_image' => $notification->referencedUser->image_path,
+                    ];
+                } else {
+                    $notification->reference_user_details = null;
+                }
+                
+                // Hide the loaded relationship to keep response clean if desired
+                $notification->makeHidden('referencedUser');
+                
+                return $notification;
+            });
 
             return $this->responseJsonPaginated(true, 200, 'Notifications retrieved successfully', $notificationsPaginator);
         } catch (\Throwable $th) {

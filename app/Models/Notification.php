@@ -27,4 +27,9 @@ class Notification extends Model
     {
         return $this->belongsTo(User::class);
     }
+
+    public function referencedUser()
+    {
+        return $this->belongsTo(User::class, 'referenced_user_id');
+    }
 }

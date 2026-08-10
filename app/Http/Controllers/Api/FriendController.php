@@ -69,6 +69,7 @@ class FriendController extends BaseController
         $senderName = !empty($user->name) ? $user->name : (!empty($user->username) ? $user->username : 'Someone');
         Notification::create([
             'user_id' => $user_id,
+            'referenced_user_id' => $user->id,
             'title' => 'Friend Request',
             'description' => 'You have received a friend request from "' . $senderName . '"',
             'type' => 'friend_request',
@@ -136,6 +137,7 @@ class FriendController extends BaseController
         $acceptorName = !empty($user->name) ? $user->name : (!empty($user->username) ? $user->username : 'Someone');
         Notification::create([
             'user_id' => $friendRequest->user_id,
+            'referenced_user_id' => $friendRequest->friend_id,
             'title' => 'Friend Request Accepted',
             'description' => $acceptorName . ' has accepted your friend request.',
             'type' => 'friend_request_accepted',
@@ -178,7 +180,8 @@ class FriendController extends BaseController
         $friendRequest->save();
         Notification::create([
             'user_id' => $friendRequest->user_id,
-            'title' => 'Friend Request Accepted',
+            'referenced_user_id' => $friendRequest->friend_id,
+            'title' => 'Friend Request Rejected',
             'description' => $user->name . ' has rejected your friend request.',
             'type' => 'friend_request_rejected',
             'for' => 2,

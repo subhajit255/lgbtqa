@@ -12,6 +12,7 @@ return new class extends Migration
     public function up(): void
     {
         Schema::table('notifications', function (Blueprint $table) {
+            $table->foreignId('referenced_user_id')->nullable()->after('user_id')->constrained('users')->onDelete('cascade');
             $table->boolean('is_community')->default(0)->after('redirection_id');
             $table->boolean('is_friend_request')->default(0)->after('is_community');
         });
@@ -23,6 +24,7 @@ return new class extends Migration
     public function down(): void
     {
         Schema::table('notifications', function (Blueprint $table) {
+            $table->dropColumn('referenced_user_id');
             $table->dropColumn('is_community');
             $table->dropColumn('is_friend_request');
         });
