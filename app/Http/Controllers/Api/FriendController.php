@@ -60,7 +60,7 @@ class FriendController extends BaseController
             return $this->responseJson(false, 400, 'Friend request already exists or you are already friends.', []);
         }
 
-        FriendRequest::create([
+        $isFriendRequest = FriendRequest::create([
             'user_id' => $user->id,
             'friend_id' => $user_id,
             'status' => 'pending',
@@ -75,6 +75,7 @@ class FriendController extends BaseController
             'for' => 2,
             'is_read' => 0,
             'is_active' => 1,
+            'redirection_id' => $isFriendRequest->id ?? null,
         ]);
         return $this->responseJson(true, 200, 'Friend request sent successfully.', []);
     }
@@ -140,6 +141,7 @@ class FriendController extends BaseController
             'for' => 2,
             'is_read' => 0,
             'is_active' => 1,
+            'redirection_id' => $friendRequest->id ?? null,
         ]);
         return  $this->responseJson(true, 200, 'Friend request accepted.', []);
     }
@@ -180,6 +182,7 @@ class FriendController extends BaseController
             'for' => 2,
             'is_read' => 0,
             'is_active' => 1,
+            'redirection_id' => $friendRequest->id ?? null,
         ]);
         return $this->responseJson(true, 200, 'Friend request rejected.', []);
     }

@@ -647,6 +647,7 @@ class CommunityApiController extends Controller
                 'for' => 2,
                 'is_read' => 0,
                 'is_active' => 1,
+                'redirection_id' => $community->id ?? null,
             ]);
 
             if ($community->creator_id != auth()->id()) {
@@ -658,6 +659,7 @@ class CommunityApiController extends Controller
                     'for' => 2,
                     'is_read' => 0,
                     'is_active' => 1,
+                    'redirection_id' => $community->id ?? null,
                 ]);
             }
         }
@@ -851,6 +853,7 @@ class CommunityApiController extends Controller
             'for' => 2,
             'is_read' => 0,
             'is_active' => 1,
+            'redirection_id' => $community->id ?? null,
         ]);
         if ($member->community->chat) {
             ChatParticipant::firstOrCreate([
@@ -1178,6 +1181,7 @@ class CommunityApiController extends Controller
                         'for' => 2,
                         'is_read' => 0,
                         'is_active' => 1,
+                        'redirection_id' => $community->id ?? null,
                     ]);
 
                     $addedMembers[] = $userId;
