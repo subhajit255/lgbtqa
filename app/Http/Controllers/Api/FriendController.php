@@ -133,7 +133,7 @@ class FriendController extends BaseController
         Notification::create([
             'user_id' => $friendRequest->user_id,
             'title' => 'Friend Request Accepted',
-            'description' => $user->name . ' has accepted your friend request.',
+            'description' => $friendRequest->receiver()->name . ' has accepted your friend request.',
             'type' => 'friend_request_accepted',
             'for' => 2,
             'is_read' => 0,
