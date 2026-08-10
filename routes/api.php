@@ -163,7 +163,7 @@ Route::middleware(['auth:api', \App\Http\Middleware\UpdateUserLastActivity::clas
         Route::get('/my-friends', 'myFriends');
         Route::post('/request/{user_id}', 'sendRequest');
         Route::get('/requests', 'viewRequests');
-        Route::post('/accept/{request_id}', 'accepxxtRequest');
+        Route::post('/accept/{request_id}', 'acceptRequest');
         Route::post('/reject/{request_id}', 'rejectRequest');
     });
 
