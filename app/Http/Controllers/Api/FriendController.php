@@ -66,10 +66,11 @@ class FriendController extends BaseController
             'status' => 'pending',
             'met_in_real_life' => $request->boolean('met_in_real_life', false)
         ]);
+        $senderName = !empty($user->name) ? $user->name : (!empty($user->username) ? $user->username : 'Someone');
         Notification::create([
             'user_id' => $user_id,
             'title' => 'Friend Request',
-            'description' => 'You have received a friend request from "' . $user->name . '"',
+            'description' => 'You have received a friend request from "' . $senderName . '"',
             'type' => 'friend_request',
             'for' => 2,
             'is_read' => 0,
@@ -130,10 +131,11 @@ class FriendController extends BaseController
 
         $friendRequest->status = 'accepted';
         $friendRequest->save();
+        $acceptorName = !empty($user->name) ? $user->name : (!empty($user->username) ? $user->username : 'Someone');
         Notification::create([
             'user_id' => $friendRequest->user_id,
             'title' => 'Friend Request Accepted',
-            'description' => auth()->user()->name . ' has accepted your friend request.',
+            'description' => $acceptorName . ' has accepted your friend request.',
             'type' => 'friend_request_accepted',
             'for' => 2,
             'is_read' => 0,

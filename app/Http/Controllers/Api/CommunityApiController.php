@@ -637,15 +637,29 @@ class CommunityApiController extends Controller
             'role' => 'member'
         ]);
         if (!$existing) {
+            $userName = auth()->user()->name ?? auth()->user()->username ?? 'Someone';
+
             Notification::create([
                 'user_id' => auth()->id(),
                 'title' => 'Join Community',
-                'description' => $status == 'active' ? 'You are now a member of the community "' . $community->name : 'Your request to join the community "' . $community->name . '" has been sent',
+                'description' => $status == 'active' ? 'You are now a member of the community "' . $community->name . '"' : 'Your request to join the community "' . $community->name . '" has been sent',
                 'type' => 'community_join',
                 'for' => 2,
                 'is_read' => 0,
                 'is_active' => 1,
             ]);
+
+            if ($community->creator_id != auth()->id()) {
+                Notification::create([
+                    'user_id' => $community->creator_id,
+                    'title' => $status == 'active' ? 'New Community Member' : 'Community Join Request',
+                    'description' => $status == 'active' ? $userName . ' has joined your community "' . $community->name . '"' : $userName . ' has requested to join your community "' . $community->name . '"',
+                    'type' => 'community_join_request',
+                    'for' => 2,
+                    'is_read' => 0,
+                    'is_active' => 1,
+                ]);
+            }
         }
         if ($status == 'active' && $community->chat) {
             ChatParticipant::firstOrCreate([
@@ -832,7 +846,7 @@ class CommunityApiController extends Controller
         Notification::create([
             'user_id' => $member->user_id,
             'title' => 'Join Community',
-            'description' => 'You are now a member of the community "' . $member->community->name,
+            'description' => 'You are now a member of the community "' . $member->community->name . '"',
             'type' => 'community_join',
             'for' => 2,
             'is_read' => 0,
