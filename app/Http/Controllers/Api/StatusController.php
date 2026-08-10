@@ -299,7 +299,7 @@ class StatusController extends Controller
     public function addComment(Request $request, Status $status)
     {
         $request->validate([
-            'comment' => 'required|string',
+            'comment' => 'required',
             'parent_id' => 'nullable|exists:status_comments,id'
         ]);
 

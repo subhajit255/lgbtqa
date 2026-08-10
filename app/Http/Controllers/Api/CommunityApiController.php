@@ -152,6 +152,8 @@ class CommunityApiController extends Controller
             $community->user_membership_status = $membership ? $membership->status : null;
             $community->user_role = $membership ? $membership->role : null;
             $community->chat_id = $community->chat ? $community->chat->id : null;
+            $community->is_creater = $community->creator_id == $userId ? true : false;
+            $community->is_joined = $membership ? ($membership->status == 'active' && $membership->role == 'member') : false;
 
             return $community;
         });
