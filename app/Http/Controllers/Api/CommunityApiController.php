@@ -154,6 +154,7 @@ class CommunityApiController extends Controller
             $community->chat_id = $community->chat ? $community->chat->id : null;
             $community->is_creater = $community->creator_id == $userId ? true : false;
             $community->is_joined = $membership ? ($membership->status == 'active' && $membership->role == 'member') : false;
+            $community->category_name = $community->categories->pluck('group')->implode(', ') ?? null;
 
             return $community;
         });
