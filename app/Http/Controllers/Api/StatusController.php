@@ -164,11 +164,11 @@ class StatusController extends Controller
 
     /**
      * @OA\Delete(
-     *     path="/api/statuses/{id}",
+     *     path="/api/statuses/{status}",
      *     summary="Delete user own status",
      *     tags={"Statuses (Stories)"},
      *     security={{"bearerAuth":{}}},
-     *     @OA\Parameter(name="id", in="path", required=true, @OA\Schema(type="integer")),
+     *     @OA\Parameter(name="status", in="path", required=true, @OA\Schema(type="integer")),
      *     @OA\Response(
      *         response=200,
      *         description="Status deleted successfully"
@@ -200,11 +200,11 @@ class StatusController extends Controller
 
     /**
      * @OA\Post(
-     *     path="/api/statuses/{id}/react",
+     *     path="/api/statuses/{status}/react",
      *     summary="React to a status",
      *     tags={"Statuses (Stories)"},
      *     security={{"bearerAuth":{}}},
-     *     @OA\Parameter(name="id", in="path", required=true, @OA\Schema(type="integer")),
+     *     @OA\Parameter(name="status", in="path", required=true, @OA\Schema(type="integer")),
      *     @OA\RequestBody(
      *         required=true,
      *         @OA\JsonContent(
@@ -253,11 +253,11 @@ class StatusController extends Controller
 
     /**
      * @OA\Get(
-     *     path="/api/statuses/{id}/reactions",
+     *     path="/api/statuses/{status}/reactions",
      *     summary="Get reactions for a specific status",
      *     tags={"Statuses (Stories)"},
      *     security={{"bearerAuth":{}}},
-     *     @OA\Parameter(name="id", in="path", required=true, @OA\Schema(type="integer")),
+     *     @OA\Parameter(name="status", in="path", required=true, @OA\Schema(type="integer")),
      *     @OA\Response(
      *         response=200,
      *         description="Reactions retrieved successfully"
@@ -280,11 +280,11 @@ class StatusController extends Controller
 
     /**
      * @OA\Post(
-     *     path="/api/statuses/{id}/comments",
+     *     path="/api/statuses/{status}/comments",
      *     summary="Add a comment to a status (N-Level support)",
      *     tags={"Statuses (Stories)"},
      *     security={{"bearerAuth":{}}},
-     *     @OA\Parameter(name="id", in="path", required=true, @OA\Schema(type="integer")),
+     *     @OA\Parameter(name="status", in="path", required=true, @OA\Schema(type="integer")),
      *     @OA\RequestBody(
      *         required=true,
      *         @OA\JsonContent(
@@ -319,11 +319,11 @@ class StatusController extends Controller
 
     /**
      * @OA\Get(
-     *     path="/api/statuses/{id}/comments",
+     *     path="/api/statuses/{status}/comments",
      *     summary="Get N-Level comments for a status",
      *     tags={"Statuses (Stories)"},
      *     security={{"bearerAuth":{}}},
-     *     @OA\Parameter(name="id", in="path", required=true, @OA\Schema(type="integer")),
+     *     @OA\Parameter(name="status", in="path", required=true, @OA\Schema(type="integer")),
      *     @OA\Response(
      *         response=200,
      *         description="Comments retrieved successfully",
@@ -364,11 +364,11 @@ class StatusController extends Controller
 
     /**
      * @OA\Get(
-     *     path="/api/statuses/user/{id}",
+     *     path="/api/statuses/user/{user}",
      *     summary="Get a specific user active statuses",
      *     tags={"Statuses (Stories)"},
      *     security={{"bearerAuth":{}}},
-     *     @OA\Parameter(name="id", in="path", required=true, @OA\Schema(type="integer")),
+     *     @OA\Parameter(name="user", in="path", required=true, @OA\Schema(type="integer")),
      *     @OA\Response(
      *         response=200,
      *         description="User statuses retrieved successfully"
