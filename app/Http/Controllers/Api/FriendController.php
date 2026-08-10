@@ -76,6 +76,7 @@ class FriendController extends BaseController
             'is_read' => 0,
             'is_active' => 1,
             'redirection_id' => $isFriendRequest->id ?? null,
+            'is_friend_request' => 1
         ]);
         return $this->responseJson(true, 200, 'Friend request sent successfully.', []);
     }
@@ -142,6 +143,7 @@ class FriendController extends BaseController
             'is_read' => 0,
             'is_active' => 1,
             'redirection_id' => $friendRequest->id ?? null,
+            'is_friend_request' => 1
         ]);
         return  $this->responseJson(true, 200, 'Friend request accepted.', []);
     }
@@ -183,6 +185,7 @@ class FriendController extends BaseController
             'is_read' => 0,
             'is_active' => 1,
             'redirection_id' => $friendRequest->id ?? null,
+            'is_friend_request' => 1
         ]);
         return $this->responseJson(true, 200, 'Friend request rejected.', []);
     }

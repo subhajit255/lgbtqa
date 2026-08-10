@@ -73,6 +73,13 @@ class CommunityApiController extends Controller
      *         required=false,
      *         @OA\Schema(type="string")
      *     ),
+     *     @OA\Parameter(
+     *         name="category_id",
+     *         in="query",
+     *         description="Filter communities by category ID",
+     *         required=false,
+     *         @OA\Schema(type="integer")
+     *     ),
      *     @OA\Response(
      *         response=200,
      *         description="Communities retrieved successfully",
@@ -129,6 +136,18 @@ class CommunityApiController extends Controller
 
         if ($request->has('city_name') && !empty($request->city_name)) {
             $query->where('city_name', $request->city_name);
+        }
+
+        if ($request->filled('category_id')) {
+            $category = \App\Models\CommunityCategory::find($request->category_id);
+            if ($category) {
+                $categoryName = $category->group;
+                $query->where(function ($q) use ($categoryName, $category) {
+                    $q->whereHas('categories', function ($sub) use ($categoryName, $category) {
+                        $sub->where('group', $categoryName)->orWhere('community_categories.id', $category->id);
+                    })->orWhere('tags', 'like', "%{$categoryName}%");
+                });
+            }
         }
 
         if ($request->filled('search')) {
@@ -648,6 +667,7 @@ class CommunityApiController extends Controller
                 'is_read' => 0,
                 'is_active' => 1,
                 'redirection_id' => $community->id ?? null,
+                'is_community' => 1
             ]);
 
             if ($community->creator_id != auth()->id()) {
@@ -660,6 +680,7 @@ class CommunityApiController extends Controller
                     'is_read' => 0,
                     'is_active' => 1,
                     'redirection_id' => $community->id ?? null,
+                    'is_community' => 1
                 ]);
             }
         }
@@ -854,6 +875,7 @@ class CommunityApiController extends Controller
             'is_read' => 0,
             'is_active' => 1,
             'redirection_id' => $community->id ?? null,
+            'is_community' => 1
         ]);
         if ($member->community->chat) {
             ChatParticipant::firstOrCreate([
@@ -1182,6 +1204,7 @@ class CommunityApiController extends Controller
                         'is_read' => 0,
                         'is_active' => 1,
                         'redirection_id' => $community->id ?? null,
+                        'is_community' => 1
                     ]);
 
                     $addedMembers[] = $userId;

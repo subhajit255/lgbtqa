@@ -1,0 +1,30 @@
+<?php
+
+use Illuminate\Database\Migrations\Migration;
+use Illuminate\Database\Schema\Blueprint;
+use Illuminate\Support\Facades\Schema;
+
+return new class extends Migration
+{
+    /**
+     * Run the migrations.
+     */
+    public function up(): void
+    {
+        Schema::table('notifications', function (Blueprint $table) {
+            $table->boolean('is_community')->default(0)->after('redirection_id');
+            $table->boolean('is_friend_request')->default(0)->after('is_community');
+        });
+    }
+
+    /**
+     * Reverse the migrations.
+     */
+    public function down(): void
+    {
+        Schema::table('notifications', function (Blueprint $table) {
+            $table->dropColumn('is_community');
+            $table->dropColumn('is_friend_request');
+        });
+    }
+};
