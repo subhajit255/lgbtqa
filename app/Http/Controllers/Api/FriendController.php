@@ -50,11 +50,18 @@ class FriendController extends BaseController
         }
 
         // Check if request already exists
-        $existingRequest = FriendRequest::query()->where(function ($query) use ($user, $user_id) {
-            $query->where('user_id', $user->id)->where('friend_id', $user_id)->where('status', 'pending')->orWhere('status', 'accepted');
-        })->orWhere(function ($query) use ($user, $user_id) {
-            $query->where('user_id', $user_id)->where('friend_id', $user->id)->where('status', 'pending')->orWhere('status', 'accepted');
-        })->first();
+        $existingRequest = FriendRequest::query()
+            ->where(function ($query) use ($user, $user_id) {
+                $query->where('user_id', $user->id)
+                    ->where('friend_id', $user_id)
+                    ->whereIn('status', ['pending', 'accepted']);
+            })
+            ->orWhere(function ($query) use ($user, $user_id) {
+                $query->where('user_id', $user_id)
+                    ->where('friend_id', $user->id)
+                    ->whereIn('status', ['pending', 'accepted']);
+            })
+            ->first();
 
         if ($existingRequest) {
             if ($existingRequest->status == 'accepted') {
