@@ -150,7 +150,7 @@ Route::middleware(['auth:api', \App\Http\Middleware\UpdateUserLastActivity::clas
         Route::get('/', 'index');
         Route::get('/my-statuses', 'myStatuses');
         Route::post('/', 'store');
-        Route::post('/{status}/read', 'markAsRead');
+        Route::post('/{statusId}/read', 'markAsRead');
         Route::delete('/{status}', 'destroy');
         Route::post('/{status}/react', 'react');
         Route::get('/{status}/reactions', 'reactions');

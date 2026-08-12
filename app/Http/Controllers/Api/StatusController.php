@@ -249,11 +249,11 @@ class StatusController extends Controller
 
     /**
      * @OA\Post(
-     *     path="/api/statuses/{status}/read",
+     *     path="/api/statuses/{statusId}/read",
      *     summary="Mark a story as read",
      *     tags={"Statuses (Stories)"},
      *     security={{"bearerAuth":{}}},
-     *     @OA\Parameter(name="status", in="path", required=true, @OA\Schema(type="integer")),
+     *     @OA\Parameter(name="statusId", in="path", required=true, @OA\Schema(type="integer")),
      *     @OA\Response(
      *         response=200,
      *         description="Story marked as read successfully",
