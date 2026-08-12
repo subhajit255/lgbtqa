@@ -288,7 +288,6 @@ class ChatController extends Controller
 
         $query = $currentUser->friends()
             ->where('id', '!=', $currentUser->id)
-            ->where('user_type', 3) // Standard User
             ->where('is_active', 1)
             ->where('is_blocked', 0);
 

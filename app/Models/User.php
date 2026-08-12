@@ -136,11 +136,12 @@ class User extends Authenticatable
     public function friends()
     {
         // Accepted friends where this user was either the sender or receiver
-        return User::whereIn('id', function($query) {
-            $query->select('friend_id')->from('friend_requests')->where('user_id', $this->id)->where('status', 'accepted')
-                  ->union(
-                      $query->newQuery()->select('user_id')->from('friend_requests')->where('friend_id', $this->id)->where('status', 'accepted')
-                  );
+        return User::where(function ($query) {
+            $query->whereIn('id', function ($subQuery) {
+                $subQuery->select('friend_id')->from('friend_requests')->where('user_id', $this->id)->where('status', 'accepted');
+            })->orWhereIn('id', function ($subQuery) {
+                $subQuery->select('user_id')->from('friend_requests')->where('friend_id', $this->id)->where('status', 'accepted');
+            });
         });
     }
 

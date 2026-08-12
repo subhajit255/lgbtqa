@@ -157,6 +157,8 @@ class FriendController extends BaseController
             'redirection_id' => $friendRequest->id ?? null,
             'is_friend_request' => 1
         ]);
+        // make status is read to 0 who are getting request notification and type is friend request
+        Notification::query()->where('user_id', $user->id)->where('redirection_id', $request_id)->where('is_read', 0)->update(['is_read' => 1]);
         return  $this->responseJson(true, 200, 'Friend request accepted.', []);
     }
 
@@ -200,6 +202,7 @@ class FriendController extends BaseController
             'redirection_id' => $friendRequest->id ?? null,
             'is_friend_request' => 1
         ]);
+        Notification::query()->where('user_id', $user->id)->where('redirection_id', $request_id)->where('is_read', 0)->update(['is_read' => 1]);
         return $this->responseJson(true, 200, 'Friend request rejected.', []);
     }
     /**
