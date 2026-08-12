@@ -36,6 +36,11 @@ class Status extends Model
         return $this->hasMany(StatusComment::class);
     }
 
+    public function views()
+    {
+        return $this->hasMany(StatusView::class);
+    }
+
     public function scopeActive($query)
     {
         return $query->where('is_active', true)->where('expires_at', '>', now());

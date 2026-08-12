@@ -9,6 +9,7 @@ use App\Models\StatusReaction;
 use App\Models\StatusComment;
 use App\Models\User;
 use App\Models\Notification;
+use App\Models\StatusView;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Storage;
 
@@ -53,12 +54,23 @@ class StatusController extends Controller
         $perPage = $request->input('per_page') ?? 10;
         $page = $request->input('page_number') ?? $request->input('page_no') ?? $request->input('page') ?? 1;
 
-        // Get all users who have active statuses
-        $query = User::whereHas('statuses', function ($query) {
-            $query->active();
-        })->with(['statuses' => function ($query) {
-            $query->active()->with('taggedUser')->latest();
-        }]);
+        $userId = auth()->id();
+        // Get all friends who have active statuses (excluding myself)
+        $query = auth()->user()->friends()
+            ->whereHas('statuses', function ($query) {
+                $query->active();
+            })->with(['statuses' => function ($query) use ($userId) {
+                $query->active()
+                    ->where('user_id', '!=', auth()->id())
+                    ->leftJoin('status_views', function ($join) use ($userId) {
+                        $join->on('statuses.id', '=', 'status_views.status_id')
+                            ->where('status_views.viewer_id', '=', $userId);
+                    })
+                    ->select('statuses.*')
+                    ->selectRaw('IF(status_views.id IS NULL, 0, 1) as is_read_status')
+                    ->orderBy('is_read_status', 'asc') // 0 (unread) first
+                    ->with('taggedUser')->latest('statuses.created_at');
+            }]);
 
         $paginatedUsers = $query->paginate($perPage, ['*'], 'page_number', $page);
 
@@ -78,6 +90,79 @@ class StatusController extends Controller
             'Statuses retrieved successfully',
             $paginatedUsers
         );
+    }
+
+    /**
+     * @OA\Get(
+     *     path="/api/statuses/my-statuses",
+     *     summary="Get authenticated user active stories",
+     *     tags={"Statuses (Stories)"},
+     *     security={{"bearerAuth":{}}},
+     *
+     *     @OA\Response(
+     *         response=200,
+     *         description="My stories retrieved successfully",
+     *
+     *         @OA\JsonContent(
+     *
+     *             @OA\Property(property="status", type="boolean", example=true),
+     *             @OA\Property(property="message", type="string", example="My stories retrieved successfully"),
+     *             @OA\Property(property="data", type="array",
+     *
+     *                 @OA\Items(
+     *                     type="object",
+     *
+     *                     @OA\Property(property="id", type="integer"),
+     *                     @OA\Property(property="type", type="string", enum={"text", "image", "video"}),
+     *                     @OA\Property(property="content", type="string"),
+     *                     @OA\Property(property="background_color", type="string"),
+     *                     @OA\Property(property="views_count", type="integer"),
+     *                     @OA\Property(property="tagged_user", type="object", nullable=true),
+     *                     @OA\Property(property="viewers", type="array",
+     *                         @OA\Items(
+     *                             type="object",
+     *                             @OA\Property(property="id", type="integer"),
+     *                             @OA\Property(property="name", type="string"),
+     *                             @OA\Property(property="profile_image", type="string"),
+     *                             @OA\Property(property="reaction", type="string", nullable=true)
+     *                         )
+     *                     )
+     *                 )
+     *             )
+     *         )
+     *     )
+     * )
+     */
+    public function myStatuses()
+    {
+        $statuses = auth()->user()->statuses()->active()
+            ->withCount('views')
+            ->latest('created_at')
+            ->with(['taggedUser', 'views.user:id,name,profile_image', 'reactions'])
+            ->get();
+
+        $statuses->transform(function ($status) {
+            $reactionsByUserId = $status->reactions->keyBy('user_id');
+
+            $status->viewers = $status->views->map(function ($view) use ($reactionsByUserId) {
+                $user = $view->user;
+                if ($user) {
+                    $reaction = $reactionsByUserId->get($user->id);
+                    $user->reaction = $reaction ? $reaction->emoji : null;
+                }
+                return $user;
+            })->filter()->values();
+
+            unset($status->views);
+            unset($status->reactions);
+            return $status;
+        });
+
+        return response()->json([
+            'status' => true,
+            'message' => 'My stories retrieved successfully',
+            'data' => $statuses,
+        ]);
     }
 
     /**
@@ -160,6 +245,36 @@ class StatusController extends Controller
             'message' => 'Status created successfully',
             'data' => $responseData
         ], 201);
+    }
+
+    /**
+     * @OA\Post(
+     *     path="/api/statuses/{status}/read",
+     *     summary="Mark a story as read",
+     *     tags={"Statuses (Stories)"},
+     *     security={{"bearerAuth":{}}},
+     *     @OA\Parameter(name="status", in="path", required=true, @OA\Schema(type="integer")),
+     *     @OA\Response(
+     *         response=200,
+     *         description="Story marked as read successfully",
+     *         @OA\JsonContent(
+     *             @OA\Property(property="status", type="boolean", example=true),
+     *             @OA\Property(property="message", type="string", example="Story marked as read successfully")
+     *         )
+     *     )
+     * )
+     */
+    public function markAsRead($statusId)
+    {
+        StatusView::firstOrCreate([
+            'status_id' => $statusId,
+            'viewer_id' => auth()->id(),
+        ]);
+
+        return response()->json([
+            'status' => true,
+            'message' => 'Story marked as read successfully',
+        ]);
     }
 
     /**
@@ -380,7 +495,27 @@ class StatusController extends Controller
         $perPage = $request->input('per_page') ?? 10;
         $page = $request->input('page_number') ?? $request->input('page_no') ?? $request->input('page') ?? 1;
 
-        $statusesPaginator = $user->statuses()->active()->with('taggedUser')->latest()->paginate($perPage, ['*'], 'page_number', $page);
+        $userId = auth()->id();
+
+        // Only friends can see stories
+        if ($user->id !== $userId) {
+            $isFriend = auth()->user()->friends()->where('users.id', $user->id)->exists();
+
+            if (!$isFriend) {
+                return $this->responseJson(false, 403, 'You can only see stories of users you are friends with');
+            }
+        }
+
+        $statusesPaginator = $user->statuses()->active()
+            ->leftJoin('status_views', function ($join) use ($userId) {
+                $join->on('statuses.id', '=', 'status_views.status_id')
+                    ->where('status_views.viewer_id', '=', $userId);
+            })
+            ->select('statuses.*')
+            ->selectRaw('IF(status_views.id IS NULL, 0, 1) as is_read_status')
+            ->orderBy('is_read_status', 'asc')
+            ->with('taggedUser')->latest('statuses.created_at')
+            ->paginate($perPage, ['*'], 'page_number', $page);
 
         $statusesPaginator->through(function ($status) {
             if (in_array($status->type, ['image', 'video']) && $status->content) {
