@@ -44,21 +44,13 @@ class UserGeoMapController extends BaseController
      */
     public function addOrUpdateCurrentLocation(Request $request)
     {
-        $lat = $request->input('latitude', $request->input('lat'));
-        $lng = $request->input('longitude', $request->input('lng'));
-
-        $request->merge([
-            'lat' => $lat,
-            'lng' => $lng
-        ]);
-
         $validator = Validator::make($request->all(), [
-            'latitude' => 'required|numeric',
-            'longitude' => 'required|numeric',
+            'latitude' => 'required',
+            'longitude' => 'required',
         ]);
 
         if ($validator->fails()) {
-            return $this->responseJson(false, 400, $validator->errors()->first());
+            return $this->responseJson(false, 422, $validator->errors()->first());
         }
 
         $user = auth()->user();
@@ -109,21 +101,21 @@ class UserGeoMapController extends BaseController
             return $this->responseJson(false, 401, 'Unauthorized');
         }
 
-        $lat = $request->input('latitude');
-        $lng = $request->input('longitude');
+        $lat = $request->latitude;
+        $lng = $request->longitude;
 
         // Fallback to current user location if lat/lng not provided
-        if (is_null($lat) || is_null($lng)) {
-            $userLoc = UserLocation::query()->where('user_id', $user->id)->first();
-            if ($userLoc) {
-                $lat = $userLoc->lat;
-                $lng = $userLoc->lng;
+        if (empty($lat) || empty($lng)) {
+            $userLocation = UserLocation::query()->where('user_id', $user->id)->first();
+            if ($userLocation) {
+                $lat = $userLocation->lat;
+                $lng = $userLocation->lng;
             } else {
-                return $this->responseJson(false, 400, 'Latitude and longitude are required or you must update your location first.');
+                return $this->responseJson(false, 422, 'Latitude and longitude are required or you must update your location first.');
             }
         }
 
-        $maxDistance = (int) $request->input('max_distance', 50);
+        $maxDistance = $request->max_distance ?? 50;
 
         // Haversine formula in miles
         $haversine = "(3959 * acos(cos(radians(?)) * cos(radians(user_locations.lat)) * cos(radians(user_locations.lng) - radians(?)) + sin(radians(?)) * sin(radians(user_locations.lat))))";
@@ -149,10 +141,10 @@ class UserGeoMapController extends BaseController
 
         // Filter by Audience
         $audience = $request->input('audience', 'all');
-        if ($audience === 'connections') {
+        if ($audience == 'connections') {
             $friendIds = $user->friends()->pluck('users.id')->toArray();
             $query->whereIn('users.id', $friendIds);
-        } elseif ($audience === 'connections_of_friends') {
+        } elseif ($audience == 'connections_of_friends') {
             $friendIds = $user->friends()->pluck('users.id')->toArray();
             $fofIds = DB::table('friend_requests')
                 ->where('status', 'accepted')
@@ -195,7 +187,7 @@ class UserGeoMapController extends BaseController
         }
 
         // Filter Verified Profiles
-        if ($request->boolean('verified_only') || $request->input('preset') === 'verified_profiles') {
+        if ($request->boolean('verified_only') || $request->input('preset') == 'verified_profiles') {
             $query->where(function ($q) {
                 $q->whereHas('profile', function ($p) {
                     $p->where('verified_profiles', 1);

@@ -97,7 +97,7 @@ class ChatController extends Controller
 
         // For 1-on-1 chat, check if it already exists
         if (!$request->is_group && count($userIds) == 2) {
-            $existingChat = Chat::where('is_group', false)
+            $existingChat = Chat::query()->where('is_group', false)
                 ->whereHas('participants', function ($q) use ($userIds) {
                     $q->whereIn('user_id', $userIds);
                 }, '=', 2)
@@ -278,12 +278,12 @@ class ChatController extends Controller
      */
     public function chatUserList(Request $request)
     {
-        $currentUser = $request->user();
+        $currentUser = auth()->user();
         $search = $request->query('search');
 
         // Exclude users blocked by the current user or who blocked the current user
-        $blockedUserIds = UserBlock::where('user_id', $currentUser->id)->pluck('blocked_user_id')
-            ->merge(UserBlock::where('blocked_user_id', $currentUser->id)->pluck('user_id'))
+        $blockedUserIds = UserBlock::query()->where('user_id', $currentUser->id)->pluck('blocked_user_id')
+            ->merge(UserBlock::query()->where('blocked_user_id', $currentUser->id)->pluck('user_id'))
             ->filter()->unique()->toArray();
 
         $query = $currentUser->friends()
@@ -310,7 +310,7 @@ class ChatController extends Controller
         $userIds = $users->pluck('id')->toArray();
 
         // Get 1-on-1 chats for current user with these users
-        $chats = Chat::where('is_group', false)
+        $chats = Chat::query()->where('is_group', false)
             ->whereHas('participants', function ($q) use ($currentUser) {
                 $q->where('user_id', $currentUser->id);
             })
@@ -383,7 +383,7 @@ class ChatController extends Controller
             ], 422);
         }
 
-        $participant = ChatParticipant::where('chat_id', $chat->id)
+        $participant = ChatParticipant::query()->where('chat_id', $chat->id)
             ->where('user_id', $request->user()->id)
             ->first();
 
