@@ -80,6 +80,13 @@ class CommunityApiController extends Controller
      *         required=false,
      *         @OA\Schema(type="integer")
      *     ),
+     *     @OA\Parameter(
+     *         name="is_joined",
+     *         in="query",
+     *         description="Filter communities to only show those where the current user is a creator or active member",
+     *         required=false,
+     *         @OA\Schema(type="boolean")
+     *     ),
      *     @OA\Response(
      *         response=200,
      *         description="Communities retrieved successfully",
@@ -111,7 +118,16 @@ class CommunityApiController extends Controller
     {
         $userId = auth()->id();
         $user = auth()->user();
-        $query = Community::where('is_active', 1)->with('categories');
+        $query = Community::query()->where('is_active', 1)->with('categories');
+
+        if (filter_var($request->input('is_joined'), FILTER_VALIDATE_BOOLEAN)) {
+            $query->where(function ($q) use ($userId) {
+                $q->where('creator_id', $userId)
+                    ->orWhereHas('members', function ($m) use ($userId) {
+                        $m->where('user_id', $userId)->where('status', 'active');
+                    });
+            });
+        }
 
         if ($request->filled('tab')) {
             $tabOriginal = $request->input('tab');
@@ -139,7 +155,7 @@ class CommunityApiController extends Controller
         }
 
         if ($request->filled('category_id')) {
-            $category = \App\Models\CommunityCategory::find($request->category_id);
+            $category = CommunityCategory::find($request->category_id);
             if ($category) {
                 $categoryName = $category->group;
                 $query->where(function ($q) use ($categoryName, $category) {
