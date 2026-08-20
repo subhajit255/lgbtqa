@@ -44,6 +44,7 @@ class NotificationController extends BaseController
             $query = Notification::with('referencedUser')
                 ->where('user_id', $user->id)
                 ->where('is_active', 1)
+                ->where('is_read', 0)
                 ->latest(); // Descending order by created_at
 
             if ($statusFilter === 'unread') {
@@ -68,10 +69,10 @@ class NotificationController extends BaseController
                 } else {
                     $notification->reference_user_details = null;
                 }
-                
+
                 // Hide the loaded relationship to keep response clean if desired
                 $notification->makeHidden('referencedUser');
-                
+
                 return $notification;
             });
 
