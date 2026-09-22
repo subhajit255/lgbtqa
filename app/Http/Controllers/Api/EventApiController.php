@@ -379,6 +379,163 @@ class EventApiController extends Controller
 
     /**
      * @OA\Post(
+     *     path="/api/events/{uuid}/save",
+     *     summary="Toggle Save Event status for current user",
+     *     tags={"Events"},
+     *     security={{"bearerAuth":{}}},
+     *     @OA\Parameter(
+     *         name="uuid",
+     *         in="path",
+     *         description="UUID of the event",
+     *         required=true,
+     *         @OA\Schema(type="string")
+     *     ),
+     *     @OA\Response(
+     *         response=200,
+     *         description="Toggle save status success",
+     *         @OA\JsonContent(
+     *             @OA\Property(property="status", type="boolean", example=true),
+     *             @OA\Property(property="message", type="string", example="Event saved successfully"),
+     *             @OA\Property(property="saved", type="boolean", example=true)
+     *         )
+     *     ),
+     *     @OA\Response(response=404, description="Event not found")
+     * )
+     */
+    public function toggleSave($uuid)
+    {
+        $userId = auth()->id();
+        $event = Event::where('uuid', $uuid)->first();
+
+        if (!$event) {
+            return response()->json([
+                'status' => false,
+                'message' => 'Event not found'
+            ], 404);
+        }
+
+        // We use 'saved' status in EventParticipant
+        $existing = EventParticipant::where('event_id', $event->id)
+            ->where('user_id', $userId)
+            ->where('status', 'saved')
+            ->first();
+
+        if ($existing) {
+            $existing->delete();
+            return response()->json([
+                'status' => true,
+                'message' => 'Event removed from saved',
+                'saved' => false
+            ]);
+        }
+
+        EventParticipant::create([
+            'event_id' => $event->id,
+            'user_id' => $userId,
+            'status' => 'saved'
+        ]);
+
+        return response()->json([
+            'status' => true,
+            'message' => 'Event saved successfully',
+            'saved' => true
+        ]);
+    }
+
+    /**
+     * @OA\Post(
+     *     path="/api/events/{uuid}/share",
+     *     summary="Share an event",
+     *     tags={"Events"},
+     *     security={{"bearerAuth":{}}},
+     *     @OA\Parameter(
+     *         name="uuid",
+     *         in="path",
+     *         description="UUID of the event",
+     *         required=true,
+     *         @OA\Schema(type="string")
+     *     ),
+     *     @OA\Response(
+     *         response=200,
+     *         description="Event share recorded",
+     *         @OA\JsonContent(
+     *             @OA\Property(property="status", type="boolean", example=true),
+     *             @OA\Property(property="message", type="string", example="Event shared successfully"),
+     *             @OA\Property(property="share_url", type="string")
+     *         )
+     *     )
+     * )
+     */
+    public function shareEvent($uuid)
+    {
+        $event = Event::where('uuid', $uuid)->first();
+
+        if (!$event) {
+            return response()->json(['status' => false, 'message' => 'Event not found'], 404);
+        }
+
+        // Just generate a deep link or share URL based on the frontend structure
+        $shareUrl = url("/events/{$uuid}");
+        
+        return response()->json([
+            'status' => true,
+            'message' => 'Event shared successfully',
+            'share_url' => $shareUrl
+        ]);
+    }
+
+    /**
+     * @OA\Post(
+     *     path="/api/events/{uuid}/report",
+     *     summary="Report an event",
+     *     tags={"Events"},
+     *     security={{"bearerAuth":{}}},
+     *     @OA\Parameter(
+     *         name="uuid",
+     *         in="path",
+     *         description="UUID of the event",
+     *         required=true,
+     *         @OA\Schema(type="string")
+     *     ),
+     *     @OA\RequestBody(
+     *         required=true,
+     *         @OA\JsonContent(
+     *             required={"reason"},
+     *             @OA\Property(property="reason", type="string", description="Reason for reporting")
+     *         )
+     *     ),
+     *     @OA\Response(response=200, description="Event reported")
+     * )
+     */
+    public function reportEvent(Request $request, $uuid)
+    {
+        $userId = auth()->id();
+        $event = Event::where('uuid', $uuid)->first();
+
+        if (!$event) {
+            return response()->json(['status' => false, 'message' => 'Event not found'], 404);
+        }
+
+        $request->validate([
+            'reason' => 'required|string|max:1000'
+        ]);
+
+        \App\Models\Report::create([
+            'reporter_id' => $userId,
+            'reported_id' => $event->id,
+            'report_type' => 'event',
+            'reason' => $request->reason,
+            'status' => 'pending'
+        ]);
+
+        return response()->json([
+            'status' => true,
+            'message' => 'Report received successfully'
+        ]);
+    }
+
+    /**
+     * @OA\Post(
      *     path="/api/events/create",
      *     summary="Create a new event",
      *     tags={"Events"},
@@ -388,14 +545,19 @@ class EventApiController extends Controller
      *         @OA\MediaType(
      *             mediaType="multipart/form-data",
      *             @OA\Schema(
-     *                 required={"title", "event_date", "start_time", "end_time", "location", "host_name", "file"},
+     *                 required={"title", "event_date", "host_name", "file"},
      *                 @OA\Property(property="title", type="string"),
      *                 @OA\Property(property="description", type="string"),
      *                 @OA\Property(property="about", type="string"),
      *                 @OA\Property(property="event_date", type="string", format="date", example="2026-05-03"),
      *                 @OA\Property(property="start_time", type="string", example="8:00 PM"),
      *                 @OA\Property(property="end_time", type="string", example="1:00 AM"),
-     *                 @OA\Property(property="location", type="string"),
+     *                 @OA\Property(property="location_string", type="string"),
+     *                 @OA\Property(property="location_id", type="integer"),
+     *                 @OA\Property(property="is_all_day", type="boolean"),
+     *                 @OA\Property(property="time_zone", type="string", example="Europe/Zurich"),
+     *                 @OA\Property(property="age_restriction", type="string", example="ALL"),
+     *                 @OA\Property(property="official_ticket_url", type="string"),
      *                 @OA\Property(property="host_name", type="string"),
      *                 @OA\Property(property="host_type", type="string", default="PARTNER"),
      *                 @OA\Property(property="host_pronouns", type="string"),
@@ -424,9 +586,14 @@ class EventApiController extends Controller
             'description' => 'nullable|string',
             'about' => 'nullable|string',
             'event_date' => 'required|date|after_or_equal:today',
-            'start_time' => 'required|string',
-            'end_time' => 'required|string',
-            'location' => 'required|string|max:255',
+            'start_time' => 'nullable|string',
+            'end_time' => 'nullable|string',
+            'location_string' => 'required_without:location_id|string|max:255',
+            'location_id' => 'nullable|exists:locations,id',
+            'is_all_day' => 'boolean',
+            'time_zone' => 'nullable|string|max:100',
+            'age_restriction' => 'nullable|in:16-17,18+,ALL',
+            'official_ticket_url' => 'nullable|url|max:255',
             'host_name' => 'required|string|max:255',
             'host_type' => 'nullable|string|max:100',
             'host_pronouns' => 'nullable|string|max:100',
@@ -445,7 +612,13 @@ class EventApiController extends Controller
                 "event_date" => $request->event_date,
                 "start_time" => $request->start_time,
                 "end_time" => $request->end_time,
-                "location" => $request->location,
+                "location_string" => $request->location_string ?? $request->location,
+                "location_id" => $request->location_id,
+                "is_all_day" => $request->is_all_day ?? 0,
+                "time_zone" => $request->time_zone,
+                "age_restriction" => $request->age_restriction ?? 'ALL',
+                "official_ticket_url" => $request->official_ticket_url,
+                "admin_status" => "SUBMITTED",
                 "host_name" => $request->host_name,
                 "host_type" => $request->host_type ?? 'PARTNER',
                 "host_pronouns" => $request->host_pronouns,
@@ -519,14 +692,19 @@ class EventApiController extends Controller
      *         @OA\MediaType(
      *             mediaType="multipart/form-data",
      *             @OA\Schema(
-     *                 required={"title", "event_date", "start_time", "end_time", "location", "host_name"},
+     *                 required={"title", "event_date", "host_name"},
      *                 @OA\Property(property="title", type="string"),
      *                 @OA\Property(property="description", type="string"),
      *                 @OA\Property(property="about", type="string"),
      *                 @OA\Property(property="event_date", type="string", format="date", example="2026-05-03"),
      *                 @OA\Property(property="start_time", type="string", example="8:00 PM"),
      *                 @OA\Property(property="end_time", type="string", example="1:00 AM"),
-     *                 @OA\Property(property="location", type="string"),
+     *                 @OA\Property(property="location_string", type="string"),
+     *                 @OA\Property(property="location_id", type="integer"),
+     *                 @OA\Property(property="is_all_day", type="boolean"),
+     *                 @OA\Property(property="time_zone", type="string", example="Europe/Zurich"),
+     *                 @OA\Property(property="age_restriction", type="string", example="ALL"),
+     *                 @OA\Property(property="official_ticket_url", type="string"),
      *                 @OA\Property(property="host_name", type="string"),
      *                 @OA\Property(property="host_type", type="string", default="PARTNER"),
      *                 @OA\Property(property="host_pronouns", type="string"),
@@ -565,9 +743,14 @@ class EventApiController extends Controller
             'description' => 'nullable|string',
             'about' => 'nullable|string',
             'event_date' => 'required|date|after_or_equal:today',
-            'start_time' => 'required|string',
-            'end_time' => 'required|string',
-            'location' => 'required|string|max:255',
+            'start_time' => 'nullable|string',
+            'end_time' => 'nullable|string',
+            'location_string' => 'required_without:location_id|string|max:255',
+            'location_id' => 'nullable|exists:locations,id',
+            'is_all_day' => 'boolean',
+            'time_zone' => 'nullable|string|max:100',
+            'age_restriction' => 'nullable|in:16-17,18+,ALL',
+            'official_ticket_url' => 'nullable|url|max:255',
             'host_name' => 'required|string|max:255',
             'host_type' => 'nullable|string|max:100',
             'host_pronouns' => 'nullable|string|max:100',
@@ -586,7 +769,12 @@ class EventApiController extends Controller
                 "event_date" => $request->event_date,
                 "start_time" => $request->start_time,
                 "end_time" => $request->end_time,
-                "location" => $request->location,
+                "location_string" => $request->location_string ?? $request->location,
+                "location_id" => $request->location_id,
+                "is_all_day" => $request->is_all_day ?? 0,
+                "time_zone" => $request->time_zone,
+                "age_restriction" => $request->age_restriction ?? 'ALL',
+                "official_ticket_url" => $request->official_ticket_url,
                 "host_name" => $request->host_name,
                 "host_type" => $request->host_type ?? 'PARTNER',
                 "host_pronouns" => $request->host_pronouns,

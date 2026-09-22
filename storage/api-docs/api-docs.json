@@ -3083,6 +3083,24 @@
                         "schema": {
                             "type": "string"
                         }
+                    },
+                    {
+                        "name": "category_id",
+                        "in": "query",
+                        "description": "Filter communities by category ID",
+                        "required": false,
+                        "schema": {
+                            "type": "integer"
+                        }
+                    },
+                    {
+                        "name": "is_joined",
+                        "in": "query",
+                        "description": "Filter communities to only show those where the current user is a creator or active member",
+                        "required": false,
+                        "schema": {
+                            "type": "boolean"
+                        }
                     }
                 ],
                 "responses": {
@@ -3779,12 +3797,12 @@
                         }
                     },
                     {
-                        "name": "city_name",
+                        "name": "category_id",
                         "in": "query",
-                        "description": "Filter communities by city name",
+                        "description": "Filter posts by category",
                         "required": false,
                         "schema": {
-                            "type": "string"
+                            "type": "integer"
                         }
                     }
                 ],
@@ -4110,6 +4128,159 @@
                 ]
             }
         },
+        "/api/events/{uuid}/save": {
+            "post": {
+                "tags": [
+                    "Events"
+                ],
+                "summary": "Toggle Save Event status for current user",
+                "operationId": "4a470bb5483bac3fb2694a6ea428940c",
+                "parameters": [
+                    {
+                        "name": "uuid",
+                        "in": "path",
+                        "description": "UUID of the event",
+                        "required": true,
+                        "schema": {
+                            "type": "string"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "Toggle save status success",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "properties": {
+                                        "status": {
+                                            "type": "boolean",
+                                            "example": true
+                                        },
+                                        "message": {
+                                            "type": "string",
+                                            "example": "Event saved successfully"
+                                        },
+                                        "saved": {
+                                            "type": "boolean",
+                                            "example": true
+                                        }
+                                    },
+                                    "type": "object"
+                                }
+                            }
+                        }
+                    },
+                    "404": {
+                        "description": "Event not found"
+                    }
+                },
+                "security": [
+                    {
+                        "bearerAuth": []
+                    }
+                ]
+            }
+        },
+        "/api/events/{uuid}/share": {
+            "post": {
+                "tags": [
+                    "Events"
+                ],
+                "summary": "Share an event",
+                "operationId": "b16645271a4c952406b3790927ffc429",
+                "parameters": [
+                    {
+                        "name": "uuid",
+                        "in": "path",
+                        "description": "UUID of the event",
+                        "required": true,
+                        "schema": {
+                            "type": "string"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "Event share recorded",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "properties": {
+                                        "status": {
+                                            "type": "boolean",
+                                            "example": true
+                                        },
+                                        "message": {
+                                            "type": "string",
+                                            "example": "Event shared successfully"
+                                        },
+                                        "share_url": {
+                                            "type": "string"
+                                        }
+                                    },
+                                    "type": "object"
+                                }
+                            }
+                        }
+                    }
+                },
+                "security": [
+                    {
+                        "bearerAuth": []
+                    }
+                ]
+            }
+        },
+        "/api/events/{uuid}/report": {
+            "post": {
+                "tags": [
+                    "Events"
+                ],
+                "summary": "Report an event",
+                "operationId": "c6b5fa5c0c62b97ed1caf552a8171153",
+                "parameters": [
+                    {
+                        "name": "uuid",
+                        "in": "path",
+                        "description": "UUID of the event",
+                        "required": true,
+                        "schema": {
+                            "type": "string"
+                        }
+                    }
+                ],
+                "requestBody": {
+                    "required": true,
+                    "content": {
+                        "application/json": {
+                            "schema": {
+                                "required": [
+                                    "reason"
+                                ],
+                                "properties": {
+                                    "reason": {
+                                        "description": "Reason for reporting",
+                                        "type": "string"
+                                    }
+                                },
+                                "type": "object"
+                            }
+                        }
+                    }
+                },
+                "responses": {
+                    "200": {
+                        "description": "Event reported"
+                    }
+                },
+                "security": [
+                    {
+                        "bearerAuth": []
+                    }
+                ]
+            }
+        },
         "/api/events/create": {
             "post": {
                 "tags": [
@@ -4125,9 +4296,6 @@
                                 "required": [
                                     "title",
                                     "event_date",
-                                    "start_time",
-                                    "end_time",
-                                    "location",
                                     "host_name",
                                     "file"
                                 ],
@@ -4154,7 +4322,24 @@
                                         "type": "string",
                                         "example": "1:00 AM"
                                     },
-                                    "location": {
+                                    "location_string": {
+                                        "type": "string"
+                                    },
+                                    "location_id": {
+                                        "type": "integer"
+                                    },
+                                    "is_all_day": {
+                                        "type": "boolean"
+                                    },
+                                    "time_zone": {
+                                        "type": "string",
+                                        "example": "Europe/Zurich"
+                                    },
+                                    "age_restriction": {
+                                        "type": "string",
+                                        "example": "ALL"
+                                    },
+                                    "official_ticket_url": {
                                         "type": "string"
                                     },
                                     "host_name": {
@@ -4249,9 +4434,6 @@
                                 "required": [
                                     "title",
                                     "event_date",
-                                    "start_time",
-                                    "end_time",
-                                    "location",
                                     "host_name"
                                 ],
                                 "properties": {
@@ -4277,7 +4459,24 @@
                                         "type": "string",
                                         "example": "1:00 AM"
                                     },
-                                    "location": {
+                                    "location_string": {
+                                        "type": "string"
+                                    },
+                                    "location_id": {
+                                        "type": "integer"
+                                    },
+                                    "is_all_day": {
+                                        "type": "boolean"
+                                    },
+                                    "time_zone": {
+                                        "type": "string",
+                                        "example": "Europe/Zurich"
+                                    },
+                                    "age_restriction": {
+                                        "type": "string",
+                                        "example": "ALL"
+                                    },
+                                    "official_ticket_url": {
                                         "type": "string"
                                     },
                                     "host_name": {
@@ -4387,6 +4586,82 @@
                                 }
                             }
                         }
+                    },
+                    "404": {
+                        "description": "Event not found"
+                    }
+                },
+                "security": [
+                    {
+                        "bearerAuth": []
+                    }
+                ]
+            }
+        },
+        "/api/events/{uuid}/remind": {
+            "post": {
+                "tags": [
+                    "Event Reminders"
+                ],
+                "summary": "Set a reminder for an event",
+                "operationId": "9dffc2bf8cf144c4acc31fdda6d507fd",
+                "parameters": [
+                    {
+                        "name": "uuid",
+                        "in": "path",
+                        "description": "UUID of the event",
+                        "required": true,
+                        "schema": {
+                            "type": "string"
+                        }
+                    },
+                    {
+                        "name": "type",
+                        "in": "query",
+                        "description": "Type of reminder (1_DAY_BEFORE, 1_HOUR_BEFORE, AT_START)",
+                        "required": false,
+                        "schema": {
+                            "type": "string",
+                            "default": "1_DAY_BEFORE"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "Reminder set successfully"
+                    },
+                    "404": {
+                        "description": "Event not found"
+                    }
+                },
+                "security": [
+                    {
+                        "bearerAuth": []
+                    }
+                ]
+            }
+        },
+        "/api/events/{uuid}/remove-reminder": {
+            "post": {
+                "tags": [
+                    "Event Reminders"
+                ],
+                "summary": "Remove a reminder for an event",
+                "operationId": "640d8652f550d3da510fe31eec49cc4b",
+                "parameters": [
+                    {
+                        "name": "uuid",
+                        "in": "path",
+                        "description": "UUID of the event",
+                        "required": true,
+                        "schema": {
+                            "type": "string"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "Reminder removed successfully"
                     },
                     "404": {
                         "description": "Event not found"
@@ -4808,6 +5083,131 @@
                                             "example": "The govt id image field is required."
                                         },
                                         "errors": {
+                                            "type": "object"
+                                        }
+                                    },
+                                    "type": "object"
+                                }
+                            }
+                        }
+                    }
+                },
+                "security": [
+                    {
+                        "bearerAuth": []
+                    }
+                ]
+            }
+        },
+        "/api/locations": {
+            "get": {
+                "tags": [
+                    "Locations"
+                ],
+                "summary": "List all approved locations",
+                "operationId": "da238bf9c8a51cc5e5f460e54148275b",
+                "responses": {
+                    "200": {
+                        "description": "List of locations fetched successfully",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "properties": {
+                                        "status": {
+                                            "type": "boolean",
+                                            "example": true
+                                        },
+                                        "message": {
+                                            "type": "string",
+                                            "example": "Locations fetched successfully"
+                                        },
+                                        "data": {
+                                            "type": "array",
+                                            "items": {
+                                                "type": "object"
+                                            }
+                                        }
+                                    },
+                                    "type": "object"
+                                }
+                            }
+                        }
+                    }
+                },
+                "security": [
+                    {
+                        "bearerAuth": []
+                    }
+                ]
+            }
+        },
+        "/api/locations/create": {
+            "post": {
+                "tags": [
+                    "Locations"
+                ],
+                "summary": "Create a new location",
+                "operationId": "b2c08f0078b8e1f074f9bc606bce6ff4",
+                "requestBody": {
+                    "required": true,
+                    "content": {
+                        "multipart/form-data": {
+                            "schema": {
+                                "required": [
+                                    "name",
+                                    "address"
+                                ],
+                                "properties": {
+                                    "name": {
+                                        "description": "Location name",
+                                        "type": "string"
+                                    },
+                                    "description": {
+                                        "description": "Optional description",
+                                        "type": "string"
+                                    },
+                                    "address": {
+                                        "description": "Verified address or map pin",
+                                        "type": "string"
+                                    },
+                                    "lat": {
+                                        "type": "number",
+                                        "format": "float"
+                                    },
+                                    "lng": {
+                                        "type": "number",
+                                        "format": "float"
+                                    },
+                                    "hours": {
+                                        "description": "Opening hours",
+                                        "type": "string"
+                                    },
+                                    "official_link": {
+                                        "description": "Official website URL",
+                                        "type": "string"
+                                    }
+                                },
+                                "type": "object"
+                            }
+                        }
+                    }
+                },
+                "responses": {
+                    "201": {
+                        "description": "Location submitted successfully",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "properties": {
+                                        "status": {
+                                            "type": "boolean",
+                                            "example": true
+                                        },
+                                        "message": {
+                                            "type": "string",
+                                            "example": "Location submitted for review successfully"
+                                        },
+                                        "data": {
                                             "type": "object"
                                         }
                                     },
@@ -5252,6 +5652,73 @@
                                 }
                             }
                         }
+                    }
+                },
+                "security": [
+                    {
+                        "bearerAuth": []
+                    }
+                ]
+            }
+        },
+        "/api/partner/packages": {
+            "get": {
+                "tags": [
+                    "Partners"
+                ],
+                "summary": "Get all partner packages",
+                "operationId": "getPartnerPackages",
+                "responses": {
+                    "200": {
+                        "description": "Successful operation"
+                    }
+                },
+                "security": [
+                    {
+                        "bearerAuth": []
+                    }
+                ]
+            }
+        },
+        "/api/partner/request": {
+            "post": {
+                "tags": [
+                    "Partners"
+                ],
+                "summary": "Submit a partner request",
+                "operationId": "submitPartnerRequest",
+                "requestBody": {
+                    "required": true,
+                    "content": {
+                        "application/json": {
+                            "schema": {
+                                "required": [
+                                    "organization_name",
+                                    "email"
+                                ],
+                                "properties": {
+                                    "organization_name": {
+                                        "type": "string"
+                                    },
+                                    "email": {
+                                        "type": "string",
+                                        "format": "email"
+                                    },
+                                    "package_id": {
+                                        "type": "integer"
+                                    },
+                                    "message": {
+                                        "type": "string"
+                                    }
+                                },
+                                "type": "object"
+                            }
+                        }
+                    }
+                },
+                "responses": {
+                    "200": {
+                        "description": "Request submitted successfully"
                     }
                 },
                 "security": [
@@ -6411,16 +6878,151 @@
                 ]
             }
         },
-        "/api/statuses/{id}": {
+        "/api/statuses/my-statuses": {
+            "get": {
+                "tags": [
+                    "Statuses (Stories)"
+                ],
+                "summary": "Get authenticated user active stories",
+                "operationId": "507527bce293894ef23b50261c1e2eb4",
+                "responses": {
+                    "200": {
+                        "description": "My stories retrieved successfully",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "properties": {
+                                        "status": {
+                                            "type": "boolean",
+                                            "example": true
+                                        },
+                                        "message": {
+                                            "type": "string",
+                                            "example": "My stories retrieved successfully"
+                                        },
+                                        "data": {
+                                            "type": "array",
+                                            "items": {
+                                                "properties": {
+                                                    "id": {
+                                                        "type": "integer"
+                                                    },
+                                                    "type": {
+                                                        "type": "string",
+                                                        "enum": [
+                                                            "text",
+                                                            "image",
+                                                            "video"
+                                                        ]
+                                                    },
+                                                    "content": {
+                                                        "type": "string"
+                                                    },
+                                                    "background_color": {
+                                                        "type": "string"
+                                                    },
+                                                    "views_count": {
+                                                        "type": "integer"
+                                                    },
+                                                    "tagged_user": {
+                                                        "type": "object",
+                                                        "nullable": true
+                                                    },
+                                                    "viewers": {
+                                                        "type": "array",
+                                                        "items": {
+                                                            "properties": {
+                                                                "id": {
+                                                                    "type": "integer"
+                                                                },
+                                                                "name": {
+                                                                    "type": "string"
+                                                                },
+                                                                "profile_image": {
+                                                                    "type": "string"
+                                                                },
+                                                                "reaction": {
+                                                                    "type": "string",
+                                                                    "nullable": true
+                                                                }
+                                                            },
+                                                            "type": "object"
+                                                        }
+                                                    }
+                                                },
+                                                "type": "object"
+                                            }
+                                        }
+                                    },
+                                    "type": "object"
+                                }
+                            }
+                        }
+                    }
+                },
+                "security": [
+                    {
+                        "bearerAuth": []
+                    }
+                ]
+            }
+        },
+        "/api/statuses/{statusId}/read": {
+            "post": {
+                "tags": [
+                    "Statuses (Stories)"
+                ],
+                "summary": "Mark a story as read",
+                "operationId": "21d9ce8653f91c2890df41bb6d0f4396",
+                "parameters": [
+                    {
+                        "name": "statusId",
+                        "in": "path",
+                        "required": true,
+                        "schema": {
+                            "type": "integer"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "Story marked as read successfully",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "properties": {
+                                        "status": {
+                                            "type": "boolean",
+                                            "example": true
+                                        },
+                                        "message": {
+                                            "type": "string",
+                                            "example": "Story marked as read successfully"
+                                        }
+                                    },
+                                    "type": "object"
+                                }
+                            }
+                        }
+                    }
+                },
+                "security": [
+                    {
+                        "bearerAuth": []
+                    }
+                ]
+            }
+        },
+        "/api/statuses/{status}": {
             "delete": {
                 "tags": [
                     "Statuses (Stories)"
                 ],
                 "summary": "Delete user own status",
-                "operationId": "7bf136ee555a4babc4b933d4536adf2d",
+                "operationId": "64dfef39326f59c6df187725a582e477",
                 "parameters": [
                     {
-                        "name": "id",
+                        "name": "status",
                         "in": "path",
                         "required": true,
                         "schema": {
@@ -6443,16 +7045,16 @@
                 ]
             }
         },
-        "/api/statuses/{id}/react": {
+        "/api/statuses/{status}/react": {
             "post": {
                 "tags": [
                     "Statuses (Stories)"
                 ],
                 "summary": "React to a status",
-                "operationId": "2ef66178d287b90126dbe58e63367e2b",
+                "operationId": "9f0ab27772239fbf90f9cf53d92fce44",
                 "parameters": [
                     {
-                        "name": "id",
+                        "name": "status",
                         "in": "path",
                         "required": true,
                         "schema": {
@@ -6491,16 +7093,16 @@
                 ]
             }
         },
-        "/api/statuses/{id}/reactions": {
+        "/api/statuses/{status}/reactions": {
             "get": {
                 "tags": [
                     "Statuses (Stories)"
                 ],
                 "summary": "Get reactions for a specific status",
-                "operationId": "878fe7b8c74d08ca523a78308c02f4de",
+                "operationId": "78b97391453ba164578d0253be3280f7",
                 "parameters": [
                     {
-                        "name": "id",
+                        "name": "status",
                         "in": "path",
                         "required": true,
                         "schema": {
@@ -6520,16 +7122,16 @@
                 ]
             }
         },
-        "/api/statuses/{id}/comments": {
+        "/api/statuses/{status}/comments": {
             "get": {
                 "tags": [
                     "Statuses (Stories)"
                 ],
                 "summary": "Get N-Level comments for a status",
-                "operationId": "639f29554cc45cfcc0addd0616a9129a",
+                "operationId": "6858c33d3c8b2d39d0b0ac8f31b573fc",
                 "parameters": [
                     {
-                        "name": "id",
+                        "name": "status",
                         "in": "path",
                         "required": true,
                         "schema": {
@@ -6589,10 +7191,10 @@
                     "Statuses (Stories)"
                 ],
                 "summary": "Add a comment to a status (N-Level support)",
-                "operationId": "d3ff84018b94bab70926cbefaa3bf90d",
+                "operationId": "8a8e3f60daccdd29e964c9aaccd09d4b",
                 "parameters": [
                     {
-                        "name": "id",
+                        "name": "status",
                         "in": "path",
                         "required": true,
                         "schema": {
@@ -6636,16 +7238,16 @@
                 ]
             }
         },
-        "/api/statuses/user/{id}": {
+        "/api/statuses/user/{user}": {
             "get": {
                 "tags": [
                     "Statuses (Stories)"
                 ],
                 "summary": "Get a specific user active statuses",
-                "operationId": "83ca56d76ac9ba3c2700c85df17c0b15",
+                "operationId": "0b862e58d5b33c23255e096d2ce6e5ce",
                 "parameters": [
                     {
-                        "name": "id",
+                        "name": "user",
                         "in": "path",
                         "required": true,
                         "schema": {
@@ -6747,6 +7349,412 @@
                 ]
             }
         },
+        "/api/subscription/plans": {
+            "get": {
+                "tags": [
+                    "Subscriptions"
+                ],
+                "summary": "Get all active subscription plans",
+                "operationId": "getPlans",
+                "responses": {
+                    "200": {
+                        "description": "Successful operation"
+                    }
+                },
+                "security": [
+                    {
+                        "bearerAuth": []
+                    }
+                ]
+            }
+        },
+        "/api/subscription/add-ons": {
+            "get": {
+                "tags": [
+                    "Subscriptions"
+                ],
+                "summary": "Get all one-time add-ons",
+                "operationId": "getAddOns",
+                "responses": {
+                    "200": {
+                        "description": "Successful operation"
+                    }
+                },
+                "security": [
+                    {
+                        "bearerAuth": []
+                    }
+                ]
+            }
+        },
+        "/api/subscription/status": {
+            "get": {
+                "tags": [
+                    "Subscriptions"
+                ],
+                "summary": "Get current user subscription status",
+                "operationId": "getSubscriptionStatus",
+                "responses": {
+                    "200": {
+                        "description": "Successful operation"
+                    }
+                },
+                "security": [
+                    {
+                        "bearerAuth": []
+                    }
+                ]
+            }
+        },
+        "/api/subscription/my-current-subscription": {
+            "get": {
+                "tags": [
+                    "Subscriptions"
+                ],
+                "summary": "Get current active subscription details",
+                "operationId": "myCurrentSubscription",
+                "responses": {
+                    "200": {
+                        "description": "Successful operation"
+                    }
+                },
+                "security": [
+                    {
+                        "bearerAuth": []
+                    }
+                ]
+            }
+        },
+        "/api/subscription/checkout": {
+            "post": {
+                "tags": [
+                    "Subscriptions"
+                ],
+                "summary": "Process a subscription or one-time payment API-based checkout",
+                "operationId": "processCheckout",
+                "requestBody": {
+                    "required": true,
+                    "content": {
+                        "application/json": {
+                            "schema": {
+                                "properties": {
+                                    "plan_uuid": {
+                                        "description": "Required if support_option_uuid is not provided",
+                                        "type": "string",
+                                        "example": "uuid-of-plan"
+                                    },
+                                    "support_option_uuid": {
+                                        "description": "Required if plan_uuid is not provided (for one-time add-ons)",
+                                        "type": "string",
+                                        "example": "uuid-of-support-option"
+                                    },
+                                    "payment_method_id": {
+                                        "description": "Required for paid plans and add-ons",
+                                        "type": "string",
+                                        "example": "pm_1234567890"
+                                    },
+                                    "idempotency_key": {
+                                        "description": "Optional key to strictly guarantee idempotency and prevent double-charging",
+                                        "type": "string",
+                                        "example": "optional-uuid-here"
+                                    }
+                                },
+                                "type": "object"
+                            }
+                        }
+                    }
+                },
+                "responses": {
+                    "200": {
+                        "description": "Successful operation"
+                    }
+                },
+                "security": [
+                    {
+                        "bearerAuth": []
+                    }
+                ]
+            }
+        },
+        "/api/subscription/payment-complete": {
+            "post": {
+                "tags": [
+                    "Subscriptions"
+                ],
+                "summary": "Verify and complete a pending payment",
+                "operationId": "paymentComplete",
+                "requestBody": {
+                    "required": true,
+                    "content": {
+                        "application/json": {
+                            "schema": {
+                                "required": [
+                                    "transaction_id",
+                                    "status"
+                                ],
+                                "properties": {
+                                    "transaction_id": {
+                                        "type": "string",
+                                        "example": "pi_1234567890"
+                                    },
+                                    "status": {
+                                        "description": "1 for success, 2/3 for failure",
+                                        "type": "integer",
+                                        "example": 1
+                                    }
+                                },
+                                "type": "object"
+                            }
+                        }
+                    }
+                },
+                "responses": {
+                    "200": {
+                        "description": "Successful operation"
+                    }
+                },
+                "security": [
+                    {
+                        "bearerAuth": []
+                    }
+                ]
+            }
+        },
+        "/api/subscription/advanced-search": {
+            "post": {
+                "tags": [
+                    "Subscriptions"
+                ],
+                "summary": "Advanced Discovery Search for Premium Users",
+                "operationId": "advancedSearch",
+                "parameters": [
+                    {
+                        "name": "preferred_communication",
+                        "in": "query",
+                        "description": "Filter by preferred communication style (comma-separated for multiple)",
+                        "required": false,
+                        "schema": {
+                            "type": "string"
+                        }
+                    },
+                    {
+                        "name": "sleep_rhythm",
+                        "in": "query",
+                        "description": "Filter by sleep rhythm (comma-separated for multiple)",
+                        "required": false,
+                        "schema": {
+                            "type": "string"
+                        }
+                    },
+                    {
+                        "name": "values",
+                        "in": "query",
+                        "description": "Filter by personal values/hobbies (comma-separated for multiple)",
+                        "required": false,
+                        "schema": {
+                            "type": "string"
+                        }
+                    },
+                    {
+                        "name": "kids_future",
+                        "in": "query",
+                        "description": "Filter by kids future preference (comma-separated for multiple)",
+                        "required": false,
+                        "schema": {
+                            "type": "string"
+                        }
+                    },
+                    {
+                        "name": "pets_future",
+                        "in": "query",
+                        "description": "Filter by pets future preference (comma-separated for multiple)",
+                        "required": false,
+                        "schema": {
+                            "type": "string"
+                        }
+                    },
+                    {
+                        "name": "relationship_status",
+                        "in": "query",
+                        "description": "Filter by relationship status (comma-separated for multiple)",
+                        "required": false,
+                        "schema": {
+                            "type": "string"
+                        }
+                    },
+                    {
+                        "name": "per_page",
+                        "in": "query",
+                        "description": "Number of results per page (default: 10)",
+                        "required": false,
+                        "schema": {
+                            "type": "integer"
+                        }
+                    },
+                    {
+                        "name": "page",
+                        "in": "query",
+                        "description": "The page number to retrieve",
+                        "required": false,
+                        "schema": {
+                            "type": "integer"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "Successful operation"
+                    },
+                    "403": {
+                        "description": "Forbidden - Premium subscription required"
+                    }
+                },
+                "security": [
+                    {
+                        "bearerAuth": []
+                    }
+                ]
+            }
+        },
+        "/api/support/options": {
+            "get": {
+                "tags": [
+                    "Voluntary Support"
+                ],
+                "summary": "Get preset support options",
+                "operationId": "getSupportOptions",
+                "responses": {
+                    "200": {
+                        "description": "Support options retrieved successfully."
+                    }
+                },
+                "security": [
+                    {
+                        "bearerAuth": []
+                    }
+                ]
+            }
+        },
+        "/api/support/verify-receipt": {
+            "post": {
+                "tags": [
+                    "Voluntary Support"
+                ],
+                "summary": "Verify voluntary support payment receipt",
+                "operationId": "verifySupportReceipt",
+                "requestBody": {
+                    "required": true,
+                    "content": {
+                        "application/json": {
+                            "schema": {
+                                "properties": {
+                                    "type": {
+                                        "type": "string",
+                                        "enum": [
+                                            "ONE_TIME",
+                                            "MONTHLY"
+                                        ],
+                                        "example": "ONE_TIME"
+                                    },
+                                    "amount": {
+                                        "type": "number",
+                                        "example": 10
+                                    },
+                                    "currency": {
+                                        "type": "string",
+                                        "example": "CHF"
+                                    },
+                                    "stripe_payment_intent_id": {
+                                        "type": "string",
+                                        "example": "pi_12345"
+                                    },
+                                    "stripe_subscription_id": {
+                                        "type": "string",
+                                        "example": "sub_12345"
+                                    }
+                                },
+                                "type": "object"
+                            }
+                        }
+                    }
+                },
+                "responses": {
+                    "200": {
+                        "description": "Support confirmed successfully."
+                    }
+                },
+                "security": [
+                    {
+                        "bearerAuth": []
+                    }
+                ]
+            }
+        },
+        "/api/support/recognition": {
+            "get": {
+                "tags": [
+                    "Voluntary Support"
+                ],
+                "summary": "Get voluntary support recognition preferences",
+                "operationId": "getSupportRecognition",
+                "responses": {
+                    "200": {
+                        "description": "Recognition preferences retrieved successfully."
+                    }
+                },
+                "security": [
+                    {
+                        "bearerAuth": []
+                    }
+                ]
+            },
+            "post": {
+                "tags": [
+                    "Voluntary Support"
+                ],
+                "summary": "Update voluntary support recognition preferences",
+                "operationId": "updateSupportRecognition",
+                "requestBody": {
+                    "required": true,
+                    "content": {
+                        "application/json": {
+                            "schema": {
+                                "properties": {
+                                    "visibility_mode": {
+                                        "type": "string",
+                                        "enum": [
+                                            "PRIVATE",
+                                            "SHOW_MY_PROFILE",
+                                            "SHOW_ANONYMOUSLY"
+                                        ],
+                                        "example": "PRIVATE"
+                                    },
+                                    "show_amount": {
+                                        "type": "boolean",
+                                        "example": false
+                                    },
+                                    "show_badge": {
+                                        "type": "boolean",
+                                        "example": true
+                                    }
+                                },
+                                "type": "object"
+                            }
+                        }
+                    }
+                },
+                "responses": {
+                    "200": {
+                        "description": "Recognition preferences updated successfully."
+                    }
+                },
+                "security": [
+                    {
+                        "bearerAuth": []
+                    }
+                ]
+            }
+        },
         "/api/logout": {
             "post": {
                 "tags": [
@@ -6757,6 +7765,43 @@
                 "responses": {
                     "200": {
                         "description": "Logged out successfully"
+                    },
+                    "401": {
+                        "description": "Unauthorized"
+                    }
+                },
+                "security": [
+                    {
+                        "bearerAuth": []
+                    }
+                ]
+            }
+        },
+        "/api/toggle-hide-visits": {
+            "post": {
+                "tags": [
+                    "User"
+                ],
+                "summary": "Toggle hide_my_visits setting for current user",
+                "operationId": "835bd23da29f28a27d7a6e90a8b2404f",
+                "parameters": [
+                    {
+                        "name": "status",
+                        "in": "query",
+                        "description": "0 to turn off, 1 to turn on",
+                        "required": true,
+                        "schema": {
+                            "type": "integer",
+                            "enum": [
+                                0,
+                                1
+                            ]
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "Status updated successfully"
                     },
                     "401": {
                         "description": "Unauthorized"
@@ -8101,6 +9146,61 @@
                     }
                 ]
             }
+        },
+        "/api/profile/visit": {
+            "post": {
+                "tags": [
+                    "Profile Visits"
+                ],
+                "summary": "Log a profile visit",
+                "operationId": "b270738bb95162c4304fb76a7c9be5f1",
+                "parameters": [
+                    {
+                        "name": "visited_id",
+                        "in": "query",
+                        "description": "ID of the user being visited",
+                        "required": true,
+                        "schema": {
+                            "type": "integer"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "Visit logged successfully"
+                    },
+                    "401": {
+                        "description": "Unauthorized"
+                    }
+                },
+                "security": [
+                    {
+                        "bearerAuth": []
+                    }
+                ]
+            }
+        },
+        "/api/profile/visitors": {
+            "get": {
+                "tags": [
+                    "Profile Visits"
+                ],
+                "summary": "Get list of users who visited the current user",
+                "operationId": "55d2cc9107a8894c434becf40603cb14",
+                "responses": {
+                    "200": {
+                        "description": "Visitors retrieved successfully"
+                    },
+                    "401": {
+                        "description": "Unauthorized"
+                    }
+                },
+                "security": [
+                    {
+                        "bearerAuth": []
+                    }
+                ]
+            }
         }
     },
     "components": {
@@ -8175,6 +9275,10 @@
             "description": "Events"
         },
         {
+            "name": "Event Reminders",
+            "description": "Event Reminders"
+        },
+        {
             "name": "Friends",
             "description": "Friends"
         },
@@ -8191,12 +9295,20 @@
             "description": "KYC Verification"
         },
         {
+            "name": "Locations",
+            "description": "Locations"
+        },
+        {
             "name": "Matching",
             "description": "Matching"
         },
         {
             "name": "Notifications",
             "description": "Notifications"
+        },
+        {
+            "name": "Partners",
+            "description": "Partners"
         },
         {
             "name": "Posts",
@@ -8215,8 +9327,20 @@
             "description": "Statuses (Stories)"
         },
         {
+            "name": "Subscriptions",
+            "description": "Subscriptions"
+        },
+        {
+            "name": "Voluntary Support",
+            "description": "Voluntary Support"
+        },
+        {
             "name": "Map",
             "description": "Map"
+        },
+        {
+            "name": "Profile Visits",
+            "description": "Profile Visits"
         }
     ]
 }

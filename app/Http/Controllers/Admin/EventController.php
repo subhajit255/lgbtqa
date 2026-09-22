@@ -2,12 +2,13 @@
 
 namespace App\Http\Controllers\Admin;
 
+use \App\Models\Location;
+use App\Http\Controllers\BaseController;
 use App\Models\Event;
-use App\Traits\UploadAble;
 use App\Traits\CommonFunction;
+use App\Traits\UploadAble;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
-use App\Http\Controllers\BaseController;
 
 class EventController extends BaseController
 {
@@ -16,7 +17,7 @@ class EventController extends BaseController
 
     public function index(Request $request)
     {
-        $details = Event::latest()->get();
+        $details = Event::query()->latest()->get();
         return view('admin.event.index', compact('details'));
     }
 
@@ -24,24 +25,31 @@ class EventController extends BaseController
     {
         if ($request->post()) {
             $id = $request->id ?? NULL;
-            
+
             $rules = [
                 'title' => 'required|string|max:255',
                 'description' => 'nullable|string',
                 'about' => 'nullable|string',
-                'event_date' => 'required|date|after_or_equal:today',
+                'event_date' => 'required|date',
                 'start_time' => 'required|string',
-                'end_time' => 'required|string',
-                'location' => 'required|string|max:255',
-                'host_name' => 'required|string|max:255',
+                'end_time' => 'nullable|string',
+                'is_all_day' => 'boolean',
+                'time_zone' => 'nullable|string|max:100',
+                'location_id' => 'nullable|exists:locations,id',
+                'location_string' => 'nullable|string|max:255',
+                'host_name' => 'nullable|string|max:255',
                 'host_type' => 'nullable|string|max:100',
                 'host_pronouns' => 'nullable|string|max:100',
                 'tags' => 'nullable|string|max:255',
                 'audience' => 'nullable|string|max:255',
+                'age_restriction' => 'required|in:16-17,18+,ALL',
+                'official_ticket_url' => 'nullable|url|max:255',
+                'source_attribution' => 'nullable|string|max:255',
+                'admin_status' => 'required|in:DRAFT,SUBMITTED,IN_REVIEW,CHANGES_REQUESTED,APPROVED,PUBLISHED,PAUSED,EXPIRED,REVOKED,ARCHIVED',
             ];
 
             if (empty($id)) {
-                $rules['file'] = 'required|image|mimes:jpeg,png,jpg,gif,svg|max:102400';
+                $rules['file'] = 'nullable|image|mimes:jpeg,png,jpg,gif,svg|max:102400';
                 $message = "Event Created Successfully";
             } else {
                 $rules['file'] = 'nullable|image|mimes:jpeg,png,jpg,gif,svg|max:102400';
@@ -60,12 +68,19 @@ class EventController extends BaseController
                     "event_date" => $request->event_date,
                     "start_time" => $request->start_time,
                     "end_time" => $request->end_time,
-                    "location" => $request->location,
+                    "is_all_day" => $request->is_all_day ?? 0,
+                    "time_zone" => $request->time_zone,
+                    "location_id" => $request->location_id,
+                    "location_string" => $request->location_string,
                     "host_name" => $request->host_name,
                     "host_type" => $request->host_type ?? 'PARTNER',
                     "host_pronouns" => $request->host_pronouns,
                     "tags" => $request->tags,
                     "audience" => $request->audience,
+                    "age_restriction" => $request->age_restriction ?? 'ALL',
+                    "official_ticket_url" => $request->official_ticket_url,
+                    "source_attribution" => $request->source_attribution,
+                    "admin_status" => $request->admin_status ?? 'DRAFT',
                     "is_active" => $request->is_active ?? 1,
                 ];
 
@@ -107,9 +122,25 @@ class EventController extends BaseController
         $details = null;
         if (!empty($request->uuid)) {
             $uuid = uuidtoid($request->uuid, 'events');
-            $details = Event::find($uuid);
+            $details = Event::query()->find($uuid);
         }
 
-        return view('admin.event.add', compact('details'));
+        $locations = Location::query()->where('is_active', 1)->whereIn('status', ['APPROVED', 'PUBLISHED'])->orderBy('name')->get();
+
+        return view('admin.event.add', compact('details', 'locations'));
+    }
+
+    public function updateStatus(Request $request, $id)
+    {
+        $event = Event::findOrFail($id);
+
+        $request->validate([
+            'admin_status' => 'required|in:DRAFT,SUBMITTED,IN_REVIEW,CHANGES_REQUESTED,APPROVED,PUBLISHED,PAUSED,EXPIRED,REVOKED,ARCHIVED',
+        ]);
+
+        $event->admin_status = $request->admin_status;
+        $event->save();
+
+        return response(['status' => true, 'message' => 'Event status updated successfully']);
     }
 }

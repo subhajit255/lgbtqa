@@ -63,6 +63,7 @@ class User extends Authenticatable
         'email_verified_at' => 'datetime',
         'password' => 'hashed',
         'pause_notifications' => 'boolean',
+        'hide_my_visits' => 'boolean',
     ];
 
     public function getImagePathAttribute()
@@ -179,5 +180,26 @@ class User extends Authenticatable
     public function receivedIcebreakers()
     {
         return $this->hasMany(UserIcebreaker::class, 'receiver_id');
+    }
+
+    public function subscriptions()
+    {
+        return $this->hasMany(UserSubscription::class);
+    }
+
+    public function activeSubscription()
+    {
+        return $this->hasOne(UserSubscription::class)
+            ->where('status', 'ACTIVE')
+            ->where(function($q) {
+                $q->whereNull('expires_at')
+                  ->orWhere('expires_at', '>', now());
+            })
+            ->latest('id');
+    }
+
+    public function isPremium()
+    {
+        return $this->activeSubscription()->exists();
     }
 }

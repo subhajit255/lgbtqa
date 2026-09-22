@@ -62,6 +62,48 @@ class UserController extends BaseController
 
     /**
      * @OA\Post(
+     *     path="/api/toggle-hide-visits",
+     *     summary="Toggle hide_my_visits setting for current user",
+     *     tags={"User"},
+     *     security={{"bearerAuth": {}}},
+     *     @OA\Parameter(
+     *         name="status",
+     *         in="query",
+     *         required=true,
+     *         @OA\Schema(type="integer", enum={0, 1}),
+     *         description="0 to turn off, 1 to turn on"
+     *     ),
+     *     @OA\Response(response=200, description="Status updated successfully"),
+     *     @OA\Response(response=401, description="Unauthorized")
+     * )
+     */
+    public function toggleHideMyVisits(Request $request)
+    {
+        $validator = Validator::make($request->all(), [
+            'status' => 'required|in:0,1'
+        ]);
+
+        if ($validator->fails()) {
+            return $this->responseJson(false, 422, $validator->errors()->first(), []);
+        }
+
+        $user = auth()->user();
+        if ($user) {
+            $user->hide_my_visits = $request->status;
+            if ($request->status == 0) {
+                // OFF clears member-visible history with no backfill
+                \App\Models\VisitorHistory::where('visitor_id', $user->id)->delete();
+            }
+            $user->save();
+
+            return $this->responseJson(true, 200, 'Hide visits status updated successfully', ['hide_my_visits' => $user->hide_my_visits]);
+        }
+
+        return $this->responseJson(false, 401, 'User not authenticated', []);
+    }
+
+    /**
+     * @OA\Post(
      *     path="/api/get/profile",
      *     summary="Get Profile Details",
      *     tags={"User"},

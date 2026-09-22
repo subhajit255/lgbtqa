@@ -1,9 +1,14 @@
 <?php
 
+use \App\Http\Controllers\Api\AuthApiController;
 use \App\Http\Controllers\Api\CommunityApiController;
 use \App\Http\Controllers\Api\EventApiController;
+use \App\Http\Controllers\Api\LocationApiController;
 use \App\Http\Controllers\Api\NotificationController;
+use \App\Http\Controllers\Api\PartnerApiController;
 use \App\Http\Controllers\Api\SearchController;
+use \App\Http\Controllers\Api\SubscriptionApiController;
+use \App\Http\Controllers\Api\SupportController;
 use App\Http\Controllers\Api\AppSettingToggleController;
 use App\Http\Controllers\Api\AudienceVisibilityController;
 use App\Http\Controllers\Api\AuthController;
@@ -12,6 +17,7 @@ use App\Http\Controllers\Api\BlockController;
 use App\Http\Controllers\Api\BugController;
 use App\Http\Controllers\Api\ChatController;
 use App\Http\Controllers\Api\ChatMessageController;
+use App\Http\Controllers\Api\EventReminderApiController;
 use App\Http\Controllers\Api\FriendController;
 use App\Http\Controllers\Api\GroupApiController;
 use App\Http\Controllers\Api\HobbyController;
@@ -22,7 +28,13 @@ use App\Http\Controllers\Api\PostEngagementController;
 use App\Http\Controllers\Api\StatusController;
 use App\Http\Controllers\Api\UserController;
 use App\Http\Controllers\Api\UserGeoMapController;
+use App\Http\Controllers\Api\VisitorHistoryApiController;
 use Illuminate\Support\Facades\Route;
+
+
+
+
+
 
 
 
@@ -187,13 +199,19 @@ Route::middleware(['auth:api', \App\Http\Middleware\UpdateUserLastActivity::clas
 
     // Event Routes
     Route::controller(EventApiController::class)->prefix('events')->group(function () {
-        Route::get('/', 'index');
-        Route::post('/create', 'store');
-        Route::get('/{uuid}', 'show');
-        Route::post('/update/{uuid}', 'update');
-        Route::delete('/delete/{uuid}', 'destroy');
-        Route::post('/{uuid}/join', 'toggleJoin');
-        Route::post('/{uuid}/interest', 'toggleInterest');
+        // Events
+        Route::get('events', [EventApiController::class, 'index']);
+        Route::post('events/create', [EventApiController::class, 'store']);
+        Route::get('events/{uuid}', [EventApiController::class, 'show']);
+        Route::post('events/update/{uuid}', [EventApiController::class, 'update']);
+        Route::delete('events/delete/{uuid}', [EventApiController::class, 'destroy']);
+        Route::post('events/{uuid}/join', [EventApiController::class, 'toggleJoin']);
+        Route::post('events/{uuid}/interest', [EventApiController::class, 'toggleInterest']);
+        Route::post('events/{uuid}/save', [EventApiController::class, 'toggleSave']);
+        Route::post('events/{uuid}/share', [EventApiController::class, 'shareEvent']);
+        Route::post('events/{uuid}/report', [EventApiController::class, 'reportEvent']);
+        Route::post('events/{uuid}/remind', [EventReminderApiController::class, 'setReminder']);
+        Route::post('events/{uuid}/remove-reminder', [EventReminderApiController::class, 'removeReminder']);
     });
 
     // Community Routes
@@ -223,7 +241,40 @@ Route::middleware(['auth:api', \App\Http\Middleware\UpdateUserLastActivity::clas
         Route::post('/read-all', 'markAllAsRead');
     });
 
+    // Location Routes
+    Route::controller(LocationApiController::class)->prefix('locations')->group(function () {
+        Route::get('/', 'index');
+        Route::post('/create', 'store');
+    });
+
     // Global Search Route
+    Route::controller(SubscriptionApiController::class)->prefix('subscription')->group(function () {
+        Route::get('plans', 'getPlans');
+        Route::get('add-ons', 'getAddOns');
+        Route::get('status', 'status');
+        Route::get('my-current-subscription', 'myCurrentSubscription');
+        Route::post('checkout', 'checkout');
+        Route::post('advanced-search', 'advancedSearch');
+    });
+
+    Route::controller(SupportController::class)->prefix('support')->group(function () {
+        Route::get('options', 'getOptions');
+        Route::post('verify-receipt', 'verifyReceipt');
+        Route::get('recognition', 'getRecognition');
+        Route::post('recognition', 'updateRecognition');
+    });
+
+    Route::controller(PartnerApiController::class)->prefix('partner')->group(function () {
+        Route::get('packages', 'packages');
+        Route::post('request', 'request');
+    });
+
+    // Profile Visits
+    Route::post('/toggle-hide-visits', [UserController::class, 'toggleHideMyVisits']);
+    Route::post('/profile/visit', [VisitorHistoryApiController::class, 'logVisit']);
+    Route::get('/profile/visitors', [VisitorHistoryApiController::class, 'getVisitors']);
+
+    Route::any('logout', [AuthController::class, 'logout'])->name('api.logout');
     Route::get('/search', [SearchController::class, 'search'])->name('global.search');
 
     // Map Routes

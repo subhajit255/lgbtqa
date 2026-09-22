@@ -11,8 +11,8 @@ return new class extends Migration
      */
     public function up(): void
     {
-        Schema::table('communities', function (Blueprint $table) {
-            $table->unsignedBigInteger('community_hub_id')->nullable()->after('uuid');
+        Schema::table('support_options', function (Blueprint $table) {
+            $table->string('description')->nullable()->after('label');
         });
     }
 
@@ -21,8 +21,8 @@ return new class extends Migration
      */
     public function down(): void
     {
-        Schema::table('communities', function (Blueprint $table) {
-            $table->dropColumn('community_hub_id');
+        Schema::table('support_options', function (Blueprint $table) {
+            $table->dropColumn('description');
         });
     }
 };

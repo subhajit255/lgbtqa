@@ -1,5 +1,9 @@
 <?php
 
+use \App\Http\Controllers\Admin\LocationController;
+use \App\Http\Controllers\Admin\PlanController;
+use \App\Http\Controllers\Admin\SupportOptionController;
+use \App\Http\Controllers\Admin\VoluntarySupportController;
 use App\Http\Controllers\Admin\AdminController;
 use App\Http\Controllers\Admin\AuthController;
 use App\Http\Controllers\Admin\BadgeColorController;
@@ -7,19 +11,45 @@ use App\Http\Controllers\Admin\BadgeStyleController;
 use App\Http\Controllers\Admin\BannerController;
 use App\Http\Controllers\Admin\BlogController;
 use App\Http\Controllers\Admin\BroadcastController;
+use App\Http\Controllers\Admin\BugController;
 use App\Http\Controllers\Admin\CategoryController;
-use App\Http\Controllers\Admin\PostCategoryController;
+use App\Http\Controllers\Admin\ChatController;
 use App\Http\Controllers\Admin\CmsController;
+use App\Http\Controllers\Admin\CommunityCategoryController;
+use App\Http\Controllers\Admin\CommunityController;
+use App\Http\Controllers\Admin\EventController;
 use App\Http\Controllers\Admin\GalleryController;
+use App\Http\Controllers\Admin\GroupController;
 use App\Http\Controllers\Admin\HobbyController;
+use App\Http\Controllers\Admin\KycVerificationController;
 use App\Http\Controllers\Admin\LogErrorController;
 use App\Http\Controllers\Admin\NotificationController;
+use App\Http\Controllers\Admin\PostCategoryController;
 use App\Http\Controllers\Admin\PostController;
+use App\Http\Controllers\Admin\PostEngagementController;
 use App\Http\Controllers\Admin\RolePermissionController;
 use App\Http\Controllers\Admin\SettingController;
+use App\Http\Controllers\Admin\StatusController;
 use App\Http\Controllers\Admin\UserController;
+use App\Http\Middleware\UpdateUserLastActivity;
+use Illuminate\Support\Facades\Artisan;
 use Illuminate\Support\Facades\Broadcast;
+use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Route;
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 
 /*
 |--------------------------------------------------------------------------
@@ -41,7 +71,7 @@ Route::as('admin.')->group(function () {
         Route::post('notification/read', 'readNotification')->name('read.notification');
     });
 
-    Route::middleware(['auth', \App\Http\Middleware\UpdateUserLastActivity::class])->group(function () {
+    Route::middleware(['auth', UpdateUserLastActivity::class])->group(function () {
         Route::controller(AdminController::class)->group(function () {
             Route::get('dashboard', 'dashboard')->name('dashboard');
             Route::post('profile/update', 'profileUpdate')->name('profile.update');
@@ -121,7 +151,7 @@ Route::as('admin.')->group(function () {
             Route::post('upload-media', 'uploadMedia')->name('upload.media');
             Route::post('delete-media', 'deleteMedia')->name('delete.media');
         });
-        Route::controller(\App\Http\Controllers\Admin\StatusController::class)->as('status.')->prefix('status')->group(function () {
+        Route::controller(StatusController::class)->as('status.')->prefix('status')->group(function () {
             Route::get('list', 'index')->name('list');
             Route::get('students', 'students')->name('students');
             Route::post('store', 'store')->name('store');
@@ -130,7 +160,7 @@ Route::as('admin.')->group(function () {
             Route::get('search-users', 'searchUsers')->name('search-users');
         });
 
-        Route::controller(\App\Http\Controllers\Admin\PostEngagementController::class)->as('post.engagements.')->prefix('post')->group(function () {
+        Route::controller(PostEngagementController::class)->as('post.engagements.')->prefix('post')->group(function () {
             Route::get('{uuid}/engagements', 'list')->name('list');
             Route::delete('engagements/comment/{id}', 'deleteComment')->name('delete-comment');
             Route::delete('engagements/love/{id}', 'deleteLove')->name('delete-love');
@@ -139,7 +169,7 @@ Route::as('admin.')->group(function () {
             Route::post('engagements/add', 'addEngagement')->name('add');
             Route::get('engagements/search-users', 'searchUsers')->name('search-users');
         });
-        Route::controller(\App\Http\Controllers\Admin\ChatController::class)->as('chat.')->prefix('chat')->group(function () {
+        Route::controller(ChatController::class)->as('chat.')->prefix('chat')->group(function () {
             Route::get('/', 'index')->name('index');
             Route::post('/start', 'startChat')->name('start');
             Route::get('/{chat}/messages', 'getMessages')->name('messages');
@@ -151,7 +181,7 @@ Route::as('admin.')->group(function () {
             Route::post('/message/{message}/forward', 'forwardMessage')->name('message.forward');
         });
 
-        Route::controller(\App\Http\Controllers\Admin\GroupController::class)->as('groups.')->prefix('groups')->group(function () {
+        Route::controller(GroupController::class)->as('groups.')->prefix('groups')->group(function () {
             Route::get('/', 'index')->name('index');
             Route::get('/create', 'create')->name('create');
             Route::post('/store', 'store')->name('store');
@@ -176,18 +206,53 @@ Route::as('admin.')->group(function () {
             Route::get('delete/{id}', 'delete')->name('delete');
         });
 
-        Route::controller(\App\Http\Controllers\Admin\EventController::class)->as('event.')->prefix('event')->group(function () {
+        Route::controller(EventController::class)->as('event.')->prefix('event')->group(function () {
             Route::get('list', 'index')->name('list');
             Route::any('add/{uuid?}', 'add')->name('add');
+            Route::post('update-status/{id}', 'updateStatus')->name('update-status');
         });
 
-        Route::controller(\App\Http\Controllers\Admin\CommunityCategoryController::class)->as('community-category.')->prefix('community-category')->group(function () {
+        Route::controller(LocationController::class)->as('location.')->prefix('location')->group(function () {
+            Route::get('list', 'index')->name('list');
+            Route::any('add/{uuid?}', 'add')->name('add');
+            Route::post('update-status/{id}', 'updateStatus')->name('update-status');
+        });
+
+        Route::controller(PlanController::class)->as('plan.')->prefix('plan')->group(function () {
+            Route::get('list', 'index')->name('list');
+            Route::any('add/{uuid?}', 'add')->name('add');
+            Route::post('update-status/{id}', 'updateStatus')->name('update-status');
+            Route::get('delete/{uuid}', 'delete')->name('delete');
+        });
+
+        Route::controller(VoluntarySupportController::class)->as('support.')->prefix('support')->group(function () {
+            Route::get('list', 'index')->name('list');
+        });
+
+        Route::controller(SupportOptionController::class)->as('support-option.')->prefix('support-option')->group(function () {
+            Route::get('list', 'index')->name('list');
+            Route::post('add', 'addOrUpdate')->name('add');
+        });
+
+        Route::controller(App\Http\Controllers\Admin\ReportController::class)->as('report.')->prefix('report')->group(function () {
+            Route::get('list', 'index')->name('list');
+            Route::post('update-status', 'updateStatus')->name('update-status');
+        });
+
+        Route::controller(App\Http\Controllers\Admin\CampaignBlockController::class)->as('campaign-block.')->prefix('campaign-block')->group(function () {
+            Route::get('list', 'index')->name('list');
+            Route::match(['get', 'post'], 'add', 'add')->name('add');
+            Route::get('search', 'searchTarget')->name('search');
+            Route::post('update-status', 'updateStatus')->name('update-status');
+        });
+
+        Route::controller(CommunityCategoryController::class)->as('community-category.')->prefix('community-category')->group(function () {
             Route::get('list', 'index')->name('list');
             Route::any('add/{id?}', 'add')->name('add');
             Route::get('delete/{id}', 'delete')->name('delete');
         });
 
-        Route::controller(\App\Http\Controllers\Admin\CommunityController::class)->as('community.')->prefix('community')->group(function () {
+        Route::controller(CommunityController::class)->as('community.')->prefix('community')->group(function () {
             Route::get('list', 'index')->name('list');
             Route::any('add/{uuid?}', 'add')->name('add');
             Route::get('view/{uuid}', 'view')->name('view');
@@ -195,7 +260,7 @@ Route::as('admin.')->group(function () {
             Route::get('reject/{id}', 'rejectMember')->name('reject');
         });
 
-        Route::controller(\App\Http\Controllers\Admin\KycVerificationController::class)->as('kyc.')->prefix('kyc')->group(function () {
+        Route::controller(KycVerificationController::class)->as('kyc.')->prefix('kyc')->group(function () {
             Route::get('list', 'index')->name('list');
             Route::get('view/{id}', 'view')->name('view');
             Route::post('approve/{id}', 'approve')->name('approve');
@@ -204,7 +269,7 @@ Route::as('admin.')->group(function () {
             Route::post('store', 'store')->name('store');
         });
 
-        Route::controller(\App\Http\Controllers\Admin\BugController::class)->as('bug.')->prefix('bug')->group(function () {
+        Route::controller(BugController::class)->as('bug.')->prefix('bug')->group(function () {
             Route::get('list', 'index')->name('list');
             Route::get('view/{id}', 'view')->name('view');
             Route::post('update-status/{id}', 'updateStatus')->name('update-status');
@@ -213,24 +278,24 @@ Route::as('admin.')->group(function () {
         // Administrative routes for shared hosting debugging
         Route::get('/run-migration', function () {
             try {
-                \Illuminate\Support\Facades\Artisan::call('migrate', ['--force' => true]);
+                Artisan::call('migrate', ['--force' => true]);
 
-                return 'Migration successful: <pre>'.\Illuminate\Support\Facades\Artisan::output().'</pre>';
+                return 'Migration successful: <pre>' . Artisan::output() . '</pre>';
             } catch (\Exception $e) {
-                return 'Migration failed: '.$e->getMessage();
+                return 'Migration failed: ' . $e->getMessage();
             }
         })->name('run.migration');
 
         Route::get('/clear-cache', function () {
             try {
-                \Illuminate\Support\Facades\Artisan::call('config:clear');
-                \Illuminate\Support\Facades\Artisan::call('cache:clear');
-                \Illuminate\Support\Facades\Artisan::call('view:clear');
-                \Illuminate\Support\Facades\Artisan::call('route:clear');
+                Artisan::call('config:clear');
+                Artisan::call('cache:clear');
+                Artisan::call('view:clear');
+                Artisan::call('route:clear');
 
-                return 'Cache cleared successfully: <pre>'.\Illuminate\Support\Facades\Artisan::output().'</pre>';
+                return 'Cache cleared successfully: <pre>' . Artisan::output() . '</pre>';
             } catch (\Exception $e) {
-                return 'Cache clearing failed: '.$e->getMessage();
+                return 'Cache clearing failed: ' . $e->getMessage();
             }
         })->name('clear.cache');
 
@@ -246,7 +311,7 @@ Route::as('admin.')->group(function () {
                 if (config('broadcasting.default') !== 'pusher') {
                     return response()->json([
                         'error' => 'Server Configuration Error',
-                        'detail' => 'Broadcasting driver is set to '.config('broadcasting.default').' instead of pusher.',
+                        'detail' => 'Broadcasting driver is set to ' . config('broadcasting.default') . ' instead of pusher.',
                     ], 500);
                 }
 
@@ -260,7 +325,7 @@ Route::as('admin.')->group(function () {
 
                 if (! $auth) {
                     // Log the failure details to laravel.log for the user to check
-                    \Illuminate\Support\Facades\Log::warning('Pusher Authorization Failed', [
+                    Log::warning('Pusher Authorization Failed', [
                         'user_id' => $user->id,
                         'channel' => $request->channel_name,
                         'socket_id' => $request->socket_id,
@@ -268,7 +333,7 @@ Route::as('admin.')->group(function () {
 
                     return response()->json([
                         'error' => 'Forbidden - Authorization Failed',
-                        'detail' => 'User '.$user->id.' is not authorized for channel '.$request->channel_name.'. Please verify you are a participant of this chat.',
+                        'detail' => 'User ' . $user->id . ' is not authorized for channel ' . $request->channel_name . '. Please verify you are a participant of this chat.',
                     ], 403);
                 }
 
@@ -277,9 +342,8 @@ Route::as('admin.')->group(function () {
                 return response($content)
                     ->header('Content-Type', 'application/json')
                     ->header('Cache-Control', 'no-cache, must-revalidate');
-
             } catch (\Exception $e) {
-                \Illuminate\Support\Facades\Log::error('Pusher Auth Error: '.$e->getMessage());
+                Log::error('Pusher Auth Error: ' . $e->getMessage());
 
                 return response()->json(['error' => $e->getMessage()], 500);
             }

@@ -183,6 +183,109 @@
 
                 <div data-kt-menu-trigger="{default: 'click', lg: 'hover'}" data-kt-menu-placement="right-start"
                     class="menu-item menu-lg-down-accordion menu-sub-lg-down-indention">
+                    <a href="{{ route('admin.location.list') }}">
+                        <span class="menu-link {{ sidebarActive(['admin.location.*']) }}">
+                            <span class="menu-icon">
+                                <span class="svg-icon svg-icon-2">
+                                    <i class="fa-solid fa-map-location-dot" style="color: #8bc34a;"></i>
+                                </span>
+                            </span>
+                            <span class="menu-title">Locations</span>
+                        </span>
+                    </a>
+                </div>
+
+                <div data-kt-menu-trigger="{default: 'click', lg: 'hover'}" data-kt-menu-placement="right-start"
+                    class="menu-item menu-lg-down-accordion menu-sub-lg-down-indention">
+                    <a href="{{ route('admin.plan.list') }}">
+                        <span class="menu-link {{ sidebarActive(['admin.plan.*']) }}">
+                            <span class="menu-icon">
+                                <span class="svg-icon svg-icon-2">
+                                    <i class="fa-solid fa-credit-card" style="color: #9c27b0;"></i>
+                                </span>
+                            </span>
+                            <span class="menu-title">Subscription Plans</span>
+                        </span>
+                    </a>
+                </div>
+
+                <div data-kt-menu-trigger="{default: 'click', lg: 'hover'}" data-kt-menu-placement="right-start"
+                    class="menu-item menu-lg-down-accordion menu-sub-lg-down-indention">
+                    <a href="{{ route('admin.report.list') }}">
+                        <span class="menu-link {{ sidebarActive(['admin.report.*']) }}">
+                            <span class="menu-icon">
+                                <span class="svg-icon svg-icon-2">
+                                    <i class="fa-solid fa-shield-halved" style="color: #f44336;"></i>
+                                </span>
+                            </span>
+                            <span class="menu-title">Moderation Queue</span>
+                        </span>
+                    </a>
+                </div>
+
+                <div data-kt-menu-trigger="{default: 'click', lg: 'hover'}" data-kt-menu-placement="right-start"
+                    class="menu-item menu-lg-down-accordion menu-sub-lg-down-indention">
+                    <a href="{{ route('admin.campaign-block.list') }}">
+                        <span class="menu-link {{ sidebarActive(['admin.campaign-block.*']) }}">
+                            <span class="menu-icon">
+                                <span class="svg-icon svg-icon-2">
+                                    <i class="fa-solid fa-star" style="color: #e91e63;"></i>
+                                </span>
+                            </span>
+                            <span class="menu-title">Campaigns & Picks</span>
+                        </span>
+                    </a>
+                </div>
+
+                <div data-kt-menu-trigger="{default: 'click', lg: 'hover'}" data-kt-menu-placement="right-start"
+                    class="menu-item menu-lg-down-accordion menu-sub-lg-down-indention">
+                    <div data-kt-menu-trigger="click"
+                        class="menu-item menu-accordion {{ sidebarOpen(['admin.support.*', 'admin.support-option.*']) }}">
+                        <span class="menu-link">
+                            <span class="menu-icon">
+                                <span class="svg-icon svg-icon-2">
+                                    <i class="fa-solid fa-hand-holding-heart" style="color: #ff9800;"></i>
+                                </span>
+                            </span>
+                            <span class="menu-title">Voluntary Support</span>
+                            <span class="menu-arrow"></span>
+                        </span>
+                        <div class="menu-sub menu-sub-accordion" style="">
+                            <div data-kt-menu-trigger="click" class="menu-item menu-accordion mb-1">
+                                <div class="menu-item">
+                                    <a href="{{ route('admin.support.list') }}">
+                                        <span class="menu-link {{ sidebarActive(['admin.support.*']) }}">
+                                            <span class="menu-icon">
+                                                <span class="svg-icon svg-icon-2">
+                                                    <i class="fa-solid fa-list" style="color: #ff9800;"></i>
+                                                </span>
+                                            </span>
+                                            <span class="menu-title">Support List</span>
+                                        </span>
+                                    </a>
+                                </div>
+                            </div>
+                            <div data-kt-menu-trigger="click" class="menu-item menu-accordion mb-1">
+                                <div class="menu-item">
+                                    <a href="{{ route('admin.support-option.list') }}">
+                                        <span class="menu-link {{ sidebarActive(['admin.support-option.*']) }}">
+                                            <span class="menu-icon">
+                                                <span class="svg-icon svg-icon-2">
+                                                    <i class="fa-solid fa-coins" style="color: #fdd835;"></i>
+                                                </span>
+                                            </span>
+                                            <span class="menu-title">Support Options</span>
+                                        </span>
+                                    </a>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+
+                <div data-kt-menu-trigger="{default: 'click', lg: 'hover'}" data-kt-menu-placement="right-start"
+                    class="menu-item menu-lg-down-accordion menu-sub-lg-down-indention">
                     <div data-kt-menu-trigger="click"
                         class="menu-item menu-accordion {{ sidebarOpen(['admin.community.*', 'admin.community-category.*']) }}">
                         <span class="menu-link">

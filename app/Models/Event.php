@@ -56,4 +56,9 @@ class Event extends Model
             ->wherePivot('status', 'interested')
             ->withTimestamps();
     }
+
+    public function locationInfo()
+    {
+        return $this->belongsTo(Location::class, 'location_id');
+    }
 }
