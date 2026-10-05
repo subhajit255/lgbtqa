@@ -54,7 +54,7 @@ class InAppPurchaseController extends BaseController
         try {
             if ($request->is_support) {
                 // Determine amount and currency from DB based on product_id
-                $supportOption = SupportOption::where('type', $request->product_id)->first();
+                $supportOption = SupportOption::where('apple_product_id', $request->product_id)->orWhere('type', $request->product_id)->first();
                 $amount = $supportOption ? $supportOption->amount : 0;
                 
                 $record = $this->grantVoluntarySupport(
@@ -77,7 +77,7 @@ class InAppPurchaseController extends BaseController
                     'Apple Support/Add-on purchase'
                 );
             } else {
-                $plan = Plan::where('stripe_price_id', $request->product_id)->orWhere('name', $request->product_id)->first();
+                $plan = Plan::where('apple_product_id', $request->product_id)->orWhere('name', $request->product_id)->first();
                 if (!$plan) {
                     throw new \Exception("Plan not found for product id: " . $request->product_id);
                 }
@@ -149,7 +149,7 @@ class InAppPurchaseController extends BaseController
         DB::beginTransaction();
         try {
             if ($request->is_support) {
-                $supportOption = SupportOption::where('type', $request->product_id)->first();
+                $supportOption = SupportOption::where('google_product_id', $request->product_id)->orWhere('type', $request->product_id)->first();
                 $amount = $supportOption ? $supportOption->amount : 0;
                 
                 $record = $this->grantVoluntarySupport(
@@ -172,7 +172,7 @@ class InAppPurchaseController extends BaseController
                     'Google Support/Add-on purchase'
                 );
             } else {
-                $plan = Plan::where('stripe_price_id', $request->product_id)->orWhere('name', $request->product_id)->first();
+                $plan = Plan::where('google_product_id', $request->product_id)->orWhere('name', $request->product_id)->first();
                 if (!$plan) {
                     throw new \Exception("Plan not found for product id: " . $request->product_id);
                 }
