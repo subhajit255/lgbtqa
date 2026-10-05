@@ -4980,6 +4980,97 @@
                 ]
             }
         },
+        "/api/in-app-purchase/verify-apple": {
+            "post": {
+                "tags": [
+                    "Subscriptions"
+                ],
+                "summary": "Verify Apple StoreKit 2 Purchase",
+                "operationId": "ad4e07f19cc3c535720c19399c243728",
+                "requestBody": {
+                    "required": true,
+                    "content": {
+                        "application/json": {
+                            "schema": {
+                                "required": [
+                                    "transaction_id"
+                                ],
+                                "properties": {
+                                    "transaction_id": {
+                                        "type": "string",
+                                        "example": "1000000000000000"
+                                    },
+                                    "product_id": {
+                                        "type": "string",
+                                        "example": "com.joinpm.app.premium"
+                                    },
+                                    "is_support": {
+                                        "type": "boolean",
+                                        "example": false
+                                    }
+                                },
+                                "type": "object"
+                            }
+                        }
+                    }
+                },
+                "responses": {
+                    "200": {
+                        "description": "Successful verification"
+                    }
+                },
+                "security": [
+                    {
+                        "bearerAuth": []
+                    }
+                ]
+            }
+        },
+        "/api/in-app-purchase/verify-google": {
+            "post": {
+                "tags": [
+                    "Subscriptions"
+                ],
+                "summary": "Verify Google Play Billing Purchase",
+                "operationId": "689a874722cc8824baced3f8d2e0faa0",
+                "requestBody": {
+                    "required": true,
+                    "content": {
+                        "application/json": {
+                            "schema": {
+                                "required": [
+                                    "purchase_token",
+                                    "product_id"
+                                ],
+                                "properties": {
+                                    "purchase_token": {
+                                        "type": "string"
+                                    },
+                                    "product_id": {
+                                        "type": "string"
+                                    },
+                                    "is_support": {
+                                        "type": "boolean",
+                                        "example": false
+                                    }
+                                },
+                                "type": "object"
+                            }
+                        }
+                    }
+                },
+                "responses": {
+                    "200": {
+                        "description": "Successful verification"
+                    }
+                },
+                "security": [
+                    {
+                        "bearerAuth": []
+                    }
+                ]
+            }
+        },
         "/api/kyc/verify": {
             "post": {
                 "tags": [
@@ -9291,6 +9382,10 @@
             "description": "Hobbies"
         },
         {
+            "name": "Subscriptions",
+            "description": "Subscriptions"
+        },
+        {
             "name": "KYC Verification",
             "description": "KYC Verification"
         },
@@ -9325,10 +9420,6 @@
         {
             "name": "Statuses (Stories)",
             "description": "Statuses (Stories)"
-        },
-        {
-            "name": "Subscriptions",
-            "description": "Subscriptions"
         },
         {
             "name": "Voluntary Support",

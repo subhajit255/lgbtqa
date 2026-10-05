@@ -17,9 +17,11 @@ use Illuminate\Http\Request;
 use Stripe\Checkout\Session as StripeSession;
 use Stripe\Stripe;
 
+use App\Traits\PaymentCoreTrait;
+
 class SubscriptionApiController extends BaseController
 {
-    use \App\Traits\StripeHelper;
+    use \App\Traits\StripeHelper, PaymentCoreTrait;
 
     /**
      * @OA\Get(
@@ -169,48 +171,50 @@ class SubscriptionApiController extends BaseController
         // Direct purchase for amount 0
         if ($price == 0) {
             if ($plan) {
-                $subscription = UserSubscription::create([
-                    'user_id' => $user->id,
-                    'plan_id' => $plan->id,
-                    'status' => 'ACTIVE',
-                    'starts_at' => now(),
-                    'expires_at' => $isOneTime ? null : ($plan->billing_cycle === 'MONTHLY' ? now()->addMonth() : null),
-                    'auto_renew' => !$isOneTime,
-                ]);
+                $subscription = $this->grantSubscription(
+                    $user, 
+                    $plan, 
+                    'stripe', // Defaulting legacy free flows to stripe/internal
+                    [], 
+                    'ACTIVE', 
+                    now(), 
+                    $isOneTime ? null : ($plan->billing_cycle === 'MONTHLY' ? now()->addMonth() : null)
+                );
 
-                Transaction::create([
-                    'user_id' => $user->id,
-                    'transaction_id' => $subscription->id,
-                    'payment_type' => 'free',
-                    'payment_method_id' => null,
-                    'amount' => 0,
-                    'currency' => config('services.stripe.currency', 'usd'),
-                    'payment_status' => 'completed',
-                    'description' => 'Free plan activation: ' . $name,
-                ]);
+                $this->logTransaction(
+                    $user,
+                    $subscription->id,
+                    'stripe',
+                    'free',
+                    0,
+                    $currency,
+                    'completed',
+                    'Free plan activation: ' . $name
+                );
 
                 return $this->responseJson(true, 200, 'Plan activated successfully.', [
                     'subscription' => $subscription
                 ]);
             } else {
-                $support = VoluntarySupport::create([
-                    'user_id' => $user->id,
-                    'type' => 'ONE_TIME',
-                    'amount' => 0,
-                    'currency' => config('services.stripe.currency', 'usd'),
-                    'status' => 'ACTIVE',
-                ]);
+                $support = $this->grantVoluntarySupport(
+                    $user,
+                    0,
+                    $currency,
+                    'stripe',
+                    [],
+                    'ACTIVE'
+                );
 
-                Transaction::create([
-                    'user_id' => $user->id,
-                    'transaction_id' => $support->id,
-                    'payment_type' => 'free',
-                    'payment_method_id' => null,
-                    'amount' => 0,
-                    'currency' => config('services.stripe.currency', 'usd'),
-                    'payment_status' => 'completed',
-                    'description' => 'Free add-on activation: ' . $name,
-                ]);
+                $this->logTransaction(
+                    $user,
+                    $support->id,
+                    'stripe',
+                    'free',
+                    0,
+                    $currency,
+                    'completed',
+                    'Free add-on activation: ' . $name
+                );
 
                 return $this->responseJson(true, 200, 'Add-on activated successfully.', [
                     'support' => $support
@@ -268,37 +272,40 @@ class SubscriptionApiController extends BaseController
 
                 $record = null;
                 if ($plan) {
-                    $record = UserSubscription::create([
-                        'user_id' => $user->id,
-                        'plan_id' => $plan->id,
-                        'stripe_customer_id' => $user->stripe_customer_id,
-                        'status' => 'ACTIVE',
-                        'starts_at' => now(),
-                        'expires_at' => null,
-                        'auto_renew' => false,
-                    ]);
+                    $record = $this->grantSubscription(
+                        $user,
+                        $plan,
+                        'stripe',
+                        ['stripe_customer_id' => $user->stripe_customer_id],
+                        'ACTIVE',
+                        now(),
+                        null
+                    );
+                    // Explicitly set auto_renew to false for one-time
+                    $record->update(['auto_renew' => false]);
                 } else {
-                    $record = VoluntarySupport::create([
-                        'user_id' => $user->id,
-                        'type' => 'ONE_TIME',
-                        'amount' => $price,
-                        'currency' => strtolower($currency),
-                        'stripe_payment_intent_id' => $paymentIntent->id,
-                        'status' => 'ACTIVE',
-                    ]);
+                    $record = $this->grantVoluntarySupport(
+                        $user,
+                        $price,
+                        $currency,
+                        'stripe',
+                        ['stripe_payment_intent_id' => $paymentIntent->id],
+                        'ACTIVE'
+                    );
                 }
 
-                Transaction::create([
-                    'user_id' => $user->id,
-                    'transaction_id' => $paymentIntent->id,
-                    'payment_type' => 'one_time',
-                    'payment_method_id' => $request->payment_method_id,
-                    'amount' => $price,
-                    'currency' => strtolower($currency),
-                    'payment_status' => 'completed',
-                    'idempotency_key' => $idempotencyKey,
-                    'description' => 'One-time payment for: ' . $name,
-                ]);
+                $this->logTransaction(
+                    $user,
+                    $paymentIntent->id,
+                    'stripe',
+                    'one_time',
+                    $price,
+                    $currency,
+                    'completed',
+                    'One-time payment for: ' . $name,
+                    $idempotencyKey,
+                    $request->payment_method_id
+                );
             } else {
                 $stripeSubscription = \Stripe\Subscription::create([
                     'customer' => $user->stripe_customer_id,
@@ -314,33 +321,36 @@ class SubscriptionApiController extends BaseController
                     UserSubscription::where('user_id', $user->id)->update(['status' => 'CANCELLED']);
                 }
 
-                $subscription = UserSubscription::create([
-                    'user_id' => $user->id,
-                    'plan_id' => $plan->id,
-                    'stripe_subscription_id' => $stripeSubscription->id,
-                    'stripe_customer_id' => $user->stripe_customer_id,
-                    'status' => $isActive ? 'ACTIVE' : 'PENDING',
-                    'starts_at' => \Carbon\Carbon::createFromTimestamp($stripeSubscription->current_period_start ?? $stripeSubscription->items->data[0]->current_period_start ?? $stripeSubscription->start_date),
-                    'expires_at' => \Carbon\Carbon::createFromTimestamp($stripeSubscription->current_period_end ?? $stripeSubscription->items->data[0]->current_period_end),
-                    'auto_renew' => true,
-                ]);
+                $subscription = $this->grantSubscription(
+                    $user,
+                    $plan,
+                    'stripe',
+                    [
+                        'stripe_subscription_id' => $stripeSubscription->id,
+                        'stripe_customer_id' => $user->stripe_customer_id
+                    ],
+                    $isActive ? 'ACTIVE' : 'PENDING',
+                    \Carbon\Carbon::createFromTimestamp($stripeSubscription->current_period_start ?? $stripeSubscription->items->data[0]->current_period_start ?? $stripeSubscription->start_date),
+                    \Carbon\Carbon::createFromTimestamp($stripeSubscription->current_period_end ?? $stripeSubscription->items->data[0]->current_period_end)
+                );
 
                 $paymentIntentId = null;
                 if (isset($stripeSubscription->latest_invoice->payment_intent)) {
                     $paymentIntentId = $stripeSubscription->latest_invoice->payment_intent->id;
                 }
 
-                Transaction::create([
-                    'user_id' => $user->id,
-                    'transaction_id' => $paymentIntentId ?? $stripeSubscription->id,
-                    'payment_type' => 'subscription',
-                    'payment_method_id' => $request->payment_method_id,
-                    'amount' => $plan->price,
-                    'currency' => strtolower($plan->currency ?? 'usd'),
-                    'payment_status' => $isActive ? 'completed' : 'pending',
-                    'idempotency_key' => $idempotencyKey,
-                    'description' => 'Subscription purchase: ' . $plan->name,
-                ]);
+                $this->logTransaction(
+                    $user,
+                    $paymentIntentId ?? $stripeSubscription->id,
+                    'stripe',
+                    'subscription',
+                    $plan->price,
+                    $plan->currency ?? 'usd',
+                    $isActive ? 'completed' : 'pending',
+                    'Subscription purchase: ' . $plan->name,
+                    $idempotencyKey,
+                    $request->payment_method_id
+                );
             }
 
             DB::commit();
@@ -352,17 +362,18 @@ class SubscriptionApiController extends BaseController
             DB::rollBack();
 
             try {
-                Transaction::create([
-                    'user_id' => auth()->id(),
-                    'payment_type' => $isOneTime ? 'one_time' : 'subscription',
-                    'payment_method_id' => $request->payment_method_id,
-                    'amount' => $price,
-                    'currency' => strtolower($currency),
-                    'payment_status' => 'failed',
-                    'idempotency_key' => $idempotencyKey,
-                    'description' => 'Failed purchase: ' . $name,
-                    'payment_details' => $e->getMessage()
-                ]);
+                $this->logTransaction(
+                    auth()->user(),
+                    'failed_' . time(),
+                    'stripe',
+                    $isOneTime ? 'one_time' : 'subscription',
+                    $price,
+                    $currency,
+                    'failed',
+                    'Failed purchase: ' . $name . ' (' . $e->getMessage() . ')',
+                    $idempotencyKey,
+                    $request->payment_method_id
+                );
             } catch (\Throwable $err) {
                 // Ignore transaction logging failure
             }

@@ -9,6 +9,7 @@ use \App\Http\Controllers\Api\PartnerApiController;
 use \App\Http\Controllers\Api\SearchController;
 use \App\Http\Controllers\Api\SubscriptionApiController;
 use \App\Http\Controllers\Api\SupportController;
+use App\Http\Controllers\Api\InAppPurchaseController;
 use App\Http\Controllers\Api\AppSettingToggleController;
 use App\Http\Controllers\Api\AudienceVisibilityController;
 use App\Http\Controllers\Api\AuthController;
@@ -255,6 +256,11 @@ Route::middleware(['auth:api', \App\Http\Middleware\UpdateUserLastActivity::clas
         Route::get('my-current-subscription', 'myCurrentSubscription');
         Route::post('checkout', 'checkout');
         Route::post('advanced-search', 'advancedSearch');
+    });
+
+    Route::controller(InAppPurchaseController::class)->prefix('in-app-purchase')->group(function () {
+        Route::post('verify-apple', 'verifyApplePurchase');
+        Route::post('verify-google', 'verifyGooglePurchase');
     });
 
     Route::controller(SupportController::class)->prefix('support')->group(function () {
