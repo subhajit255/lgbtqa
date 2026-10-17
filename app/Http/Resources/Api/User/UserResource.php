@@ -32,6 +32,12 @@ class UserResource extends JsonResource
             'is_approve' => $this->is_approve,
             'is_blocked' => $this->is_blocked,
             'is_delete' => $this->is_delete,
+            'distance' => $this->when(isset($this->distance), function () {
+                return round((float) $this->distance, 2);
+            }) ?? 0,
+            'distance_in_km' => $this->when(isset($this->distance), function () {
+                return round((float) $this->distance * 1.60934, 2);
+            }) ?? 0,
             'created_at' => $this->created_at,
             'updated_at' => $this->updated_at,
         ];

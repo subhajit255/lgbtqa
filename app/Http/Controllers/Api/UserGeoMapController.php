@@ -3,8 +3,9 @@
 namespace App\Http\Controllers\Api;
 
 use App\Http\Controllers\BaseController;
+use App\Http\Resources\Api\User\UserResource;
 use App\Models\User;
-
+use App\Models\Event;
 use App\Models\UserFavouriteProfile;
 use App\Models\UserLocation;
 use App\Models\UserRecentSearch;
@@ -79,15 +80,16 @@ class UserGeoMapController extends BaseController
      *     security={{"bearerAuth":{}}},
      *     @OA\Parameter(name="latitude", in="query", required=false, @OA\Schema(type="number", format="float"), description="Latitude of center point"),
      *     @OA\Parameter(name="longitude", in="query", required=false, @OA\Schema(type="number", format="float"), description="Longitude of center point"),
-     *     @OA\Parameter(name="max_distance", in="query", required=false, @OA\Schema(type="integer", default=50), description="Maximum distance in miles"),
+     *     @OA\Parameter(name="search", in="query", required=false, @OA\Schema(type="string"), description="Search keyword matching name, username, display name, bio, or hobbies"),
+     *     @OA\Parameter(name="max_distance", in="query", required=false, @OA\Schema(type="integer"), description="Maximum distance in miles (optional)"),
      *     @OA\Parameter(name="audience", in="query", required=false, @OA\Schema(type="string", enum={"all", "connections", "connections_of_friends"}, default="all"), description="Filter by audience connection type"),
-     *     @OA\Parameter(name="gender", in="query", required=false, @OA\Schema(type="array", @OA\Items(type="integer")), description="Filter by gender identities"),
+     *     @OA\Parameter(name="gender", in="query", required=false, @OA\Schema(type="string", example="1,2"), description="Filter by gender identities. Accepts single or multiple comma-separated IDs (e.g. 1,2). Suggestions: 1:Male, 2:Female, 3:Trans Man, 4:Trans Woman, 5:Non-binary, 6:Agender, 7:Genderfluid, 8:Genderqueer, 9:Other"),
      *     @OA\Parameter(name="hobbies", in="query", required=false, @OA\Schema(type="array", @OA\Items(type="integer")), description="Filter by hobby item IDs"),
      *     @OA\Parameter(name="age_min", in="query", required=false, @OA\Schema(type="integer", default=18), description="Minimum age filter"),
      *     @OA\Parameter(name="age_max", in="query", required=false, @OA\Schema(type="integer", default=100), description="Maximum age filter"),
      *     @OA\Parameter(name="verified_only", in="query", required=false, @OA\Schema(type="boolean"), description="Filter only verified profiles"),
-     *     @OA\Parameter(name="preset", in="query", required=false, @OA\Schema(type="string", enum={"new_members", "now_online", "recently_online", "updated_recently", "verified_profiles", "popular_nearby", "connections"}), description="Suggested search preset filter"),
-     *     @OA\Parameter(name="per_page", in="query", required=false, @OA\Schema(type="integer", default=20), description="Items per page"),
+     *     @OA\Parameter(name="preset", in="query", required=false, @OA\Schema(type="string", enum={"popular_nearby", "new_members", "verified_profiles", "connections", "favorites", "now_online", "recently_online", "updated_recently"}), description="Suggested search preset filter"),
+     *     @OA\Parameter(name="limit", in="query", required=false, @OA\Schema(type="integer", default=30, maximum=30), description="Maximum number of users to retrieve (at most 30)"),
      *     @OA\Response(
      *         response=200,
      *         description="Users retrieved successfully"
@@ -115,16 +117,23 @@ class UserGeoMapController extends BaseController
             }
         }
 
-        $maxDistance = $request->max_distance ?? 50;
-
         // Haversine formula in miles
-        $haversine = "(3959 * acos(cos(radians(?)) * cos(radians(user_locations.lat)) * cos(radians(user_locations.lng) - radians(?)) + sin(radians(?)) * sin(radians(user_locations.lat))))";
+        $haversine = "(3959 * acos(least(1, greatest(-1, cos(radians(?)) * cos(radians(user_locations.lat)) * cos(radians(user_locations.lng) - radians(?)) + sin(radians(?)) * sin(radians(user_locations.lat))))))";
+
+        // Popularity score subquery (profile visits + favourites + likes/swipes + accepted friends)
+        $popularityRaw = "((SELECT COUNT(*) FROM visitor_histories WHERE visitor_histories.visited_id = users.id) " .
+            "+ (SELECT COUNT(*) FROM user_favourite_profiles WHERE user_favourite_profiles.favourite_user_id = users.id) * 2 " .
+            "+ (SELECT COUNT(*) FROM user_swipes WHERE user_swipes.target_user_id = users.id AND user_swipes.action IN ('like', 'super_like')) * 2 " .
+            "+ (SELECT COUNT(*) FROM friend_requests WHERE (friend_requests.user_id = users.id OR friend_requests.friend_id = users.id) AND friend_requests.status = 'accepted'))";
 
         $query = User::query()
-            ->selectRaw("users.*, {$haversine} as distance", [$lat, $lng, $lat])
+            ->selectRaw("users.*, {$haversine} as distance, {$popularityRaw} as popularity_score", [$lat, $lng, $lat])
             ->join('user_locations', 'users.id', '=', 'user_locations.user_id')
-            ->where('users.id', '!=', $user->id)
-            ->whereRaw("{$haversine} <= ?", [$lat, $lng, $lat, $maxDistance]);
+            ->where('users.id', '!=', $user->id);
+
+        if ($request->filled('max_distance') && is_numeric($request->max_distance)) {
+            $query->whereRaw("{$haversine} <= ?", [$lat, $lng, $lat, (float) $request->max_distance]);
+        }
 
         // Exclude blocked users (both directions)
         $query->whereNotIn('users.id', function ($q) use ($user) {
@@ -138,6 +147,24 @@ class UserGeoMapController extends BaseController
             $q->where('guest_mode', 0)
                 ->where('no_one_at_all', 0);
         });
+
+        // Filter by text search keyword (search bar on map overlay)
+        $search = $request->input('search') ?? $request->input('keyword') ?? $request->input('query');
+        if (!empty($search)) {
+            $query->where(function ($q) use ($search) {
+                $q->where('users.name', 'like', "%{$search}%")
+                    ->orWhere('users.username', 'like', "%{$search}%")
+                    ->orWhereHas('profile', function ($pq) use ($search) {
+                        $pq->where('display_name', 'like', "%{$search}%")
+                            ->orWhere('first_name', 'like', "%{$search}%")
+                            ->orWhere('last_name', 'like', "%{$search}%")
+                            ->orWhere('about', 'like', "%{$search}%");
+                    })
+                    ->orWhereHas('hobbies', function ($hq) use ($search) {
+                        $hq->where('hobby_items.name', 'like', "%{$search}%");
+                    });
+            });
+        }
 
         // Filter by Audience
         $audience = $request->input('audience', 'all');
@@ -164,6 +191,7 @@ class UserGeoMapController extends BaseController
         // Filter by Gender
         if ($request->has('gender') && !empty($request->input('gender'))) {
             $genders = is_array($request->input('gender')) ? $request->input('gender') : explode(',', $request->input('gender'));
+            $genders = array_filter(array_map('trim', (array) $genders));
             $query->whereHas('profile', function ($q) use ($genders) {
                 $q->whereIn('gender', $genders);
             });
@@ -172,6 +200,7 @@ class UserGeoMapController extends BaseController
         // Filter by Hobbies
         if ($request->has('hobbies') && !empty($request->input('hobbies'))) {
             $hobbies = is_array($request->input('hobbies')) ? $request->input('hobbies') : explode(',', $request->input('hobbies'));
+            $hobbies = array_filter(array_map('trim', (array) $hobbies));
             $query->whereHas('hobbies', function ($q) use ($hobbies) {
                 $q->whereIn('hobby_items.id', $hobbies);
             });
@@ -199,13 +228,20 @@ class UserGeoMapController extends BaseController
 
         // Filter by Presets
         $preset = $request->input('preset');
-        if ($preset === 'new_members') {
-            $query->where('users.created_at', '>=', now()->subDays(14));
+        if ($preset === 'popular_nearby') {
+            // Nearest and more popular: handled in order by popularity_score and distance
+        } elseif ($preset === 'new_members') {
+            // New in system (last 30 days) and active/online
+            $query->where('users.created_at', '>=', now()->subDays(30))
+                ->where('user_locations.last_pinged_at', '>=', now()->subDays(7));
         } elseif ($preset === 'now_online') {
+            // Currently online (last pinged in past 15 minutes)
             $query->where('user_locations.last_pinged_at', '>=', now()->subMinutes(15));
         } elseif ($preset === 'recently_online') {
+            // Recently online (last 24 hours)
             $query->where('user_locations.last_pinged_at', '>=', now()->subHours(24));
         } elseif ($preset === 'updated_recently') {
+            // User or profile updated in past 7 days
             $query->where(function ($q) {
                 $q->where('users.updated_at', '>=', now()->subDays(7))
                     ->orWhereHas('profile', function ($p) {
@@ -213,16 +249,209 @@ class UserGeoMapController extends BaseController
                     });
             });
         } elseif ($preset === 'connections') {
+            // Friends + Matches
             $friendIds = $user->friends()->pluck('users.id')->toArray();
-            $query->whereIn('users.id', $friendIds);
+            $matchedUserIds = DB::table('user_swipes')
+                ->where('user_id', $user->id)
+                ->where('is_match', true)
+                ->pluck('target_user_id')
+                ->toArray();
+            $connectionIds = array_unique(array_merge($friendIds, $matchedUserIds));
+            $query->whereIn('users.id', $connectionIds);
+        } elseif ($preset === 'favorites') {
+            // User's favorited profiles
+            $favouriteIds = DB::table('user_favourite_profiles')
+                ->where('user_id', $user->id)
+                ->pluck('favourite_user_id')
+                ->toArray();
+            $query->whereIn('users.id', $favouriteIds);
         }
 
-        $perPage = (int) $request->input('per_page', 20);
-        $users = $query->with(['profile', 'userLocation'])
-            ->orderBy('distance', 'asc')
-            ->paginate($perPage);
+        $limit = 30;
+        if ($request->filled('limit')) {
+            $limit = min(max((int) $request->input('limit'), 1), 30);
+        } elseif ($request->filled('per_page')) {
+            $limit = min(max((int) $request->input('per_page'), 1), 30);
+        }
 
-        return $this->responseJsonPaginated(true, 200, 'Users on map retrieved successfully', $users);
+        // Apply ordering based on preset
+        if ($preset === 'popular_nearby') {
+            $query->orderByDesc('popularity_score')
+                ->orderBy('distance', 'asc');
+        } elseif ($preset === 'new_members') {
+            $query->orderBy('distance', 'asc')
+                ->orderByDesc('users.created_at');
+        } elseif ($preset === 'now_online' || $preset === 'recently_online') {
+            $query->orderBy('distance', 'asc')
+                ->orderByDesc('user_locations.last_pinged_at');
+        } elseif ($preset === 'updated_recently') {
+            $query->orderBy('distance', 'asc')
+                ->orderByDesc('users.updated_at');
+        } else {
+            $query->orderBy('distance', 'asc');
+        }
+
+        $users = $query->with(['profile', 'userLocation'])
+            ->take($limit)
+            ->get();
+
+        return $this->responseJson(true, 200, 'Users on map retrieved successfully', UserResource::collection($users));
+    }
+
+    /**
+     * @OA\Get(
+     *     path="/api/map/events",
+     *     summary="Get nearby active and upcoming events on the map based on proximity",
+     *     tags={"Map"},
+     *     security={{"bearerAuth":{}}},
+     *     @OA\Parameter(name="latitude", in="query", required=false, @OA\Schema(type="number", format="float"), description="Latitude of center point"),
+     *     @OA\Parameter(name="longitude", in="query", required=false, @OA\Schema(type="number", format="float"), description="Longitude of center point"),
+     *     @OA\Parameter(name="search", in="query", required=false, @OA\Schema(type="string"), description="Search events by title, description, location, host name, or tags"),
+     *     @OA\Parameter(name="max_distance", in="query", required=false, @OA\Schema(type="integer"), description="Maximum distance in miles (optional)"),
+     *     @OA\Parameter(name="audience", in="query", required=false, @OA\Schema(type="string"), description="Filter events by audience type (e.g. Friends, All, Community)"),
+     *     @OA\Parameter(name="tag", in="query", required=false, @OA\Schema(type="string"), description="Filter events by tag (e.g. Party, Nightlife)"),
+     *     @OA\Parameter(name="is_interested", in="query", required=false, @OA\Schema(type="boolean"), description="Filter events by user interest status"),
+     *     @OA\Parameter(name="is_joined", in="query", required=false, @OA\Schema(type="boolean"), description="Filter events by user joined status"),
+     *     @OA\Parameter(name="limit", in="query", required=false, @OA\Schema(type="integer", default=30, maximum=30), description="Maximum number of events to retrieve (at most 30)"),
+     *     @OA\Response(
+     *         response=200,
+     *         description="Events retrieved successfully"
+     *     )
+     * )
+     */
+    public function getEventsOnMap(Request $request)
+    {
+        $user = auth()->user();
+        if (!$user) {
+            return $this->responseJson(false, 401, 'Unauthorized');
+        }
+
+        $lat = $request->latitude;
+        $lng = $request->longitude;
+
+        // Fallback to current user location if lat/lng not provided
+        if (empty($lat) || empty($lng)) {
+            $userLocation = UserLocation::query()->where('user_id', $user->id)->first();
+            if ($userLocation) {
+                $lat = $userLocation->lat;
+                $lng = $userLocation->lng;
+            } else {
+                return $this->responseJson(false, 422, 'Latitude and longitude are required or you must update your location first.');
+            }
+        }
+
+        // Haversine formula in miles for events table
+        $haversine = "(3959 * acos(least(1, greatest(-1, cos(radians(?)) * cos(radians(CAST(events.lat AS DECIMAL(10, 6)))) * cos(radians(CAST(events.lng AS DECIMAL(10, 6))) - radians(?)) + sin(radians(?)) * sin(radians(CAST(events.lat AS DECIMAL(10, 6))))))))";
+
+        $today = now()->toDateString();
+        $currentTime = now()->format('H:i');
+
+        $query = Event::query()
+            ->selectRaw("events.*, {$haversine} as distance", [$lat, $lng, $lat])
+            ->whereNotNull('events.lat')
+            ->whereNotNull('events.lng')
+            ->where('events.lat', '!=', '')
+            ->where('events.lng', '!=', '')
+            ->where('events.is_active', 1)
+            // Active and not ended: event_date is in the future, or today and not past end_time
+            ->where(function ($q) use ($today, $currentTime) {
+                $q->where('events.event_date', '>', $today)
+                    ->orWhere(function ($sub) use ($today, $currentTime) {
+                        $sub->where('events.event_date', '=', $today)
+                            ->where(function ($inner) use ($currentTime) {
+                                $inner->whereNull('events.end_time')
+                                    ->orWhere('events.end_time', '')
+                                    ->orWhere('events.end_time', '>=', $currentTime);
+                            });
+                    });
+            });
+
+        // Filter by max_distance if provided
+        if ($request->filled('max_distance') && is_numeric($request->max_distance)) {
+            $query->whereRaw("{$haversine} <= ?", [$lat, $lng, $lat, (float) $request->max_distance]);
+        }
+
+        // Filter by search keyword
+        $search = $request->input('search') ?? $request->input('keyword') ?? $request->input('query');
+        if (!empty($search)) {
+            $query->where(function ($q) use ($search) {
+                $q->where('events.title', 'like', "%{$search}%")
+                    ->orWhere('events.description', 'like', "%{$search}%")
+                    ->orWhere('events.about', 'like', "%{$search}%")
+                    ->orWhere('events.location', 'like', "%{$search}%")
+                    ->orWhere('events.host_name', 'like', "%{$search}%")
+                    ->orWhere('events.tags', 'like', "%{$search}%");
+            });
+        }
+
+        // Filter by audience
+        if ($request->filled('audience')) {
+            $query->where('events.audience', 'like', "%{$request->audience}%");
+        }
+
+        // Filter by tag
+        if ($request->filled('tag')) {
+            $query->where('events.tags', 'like', "%{$request->tag}%");
+        }
+
+        // Filter by user interested status
+        if ($request->has('is_interested') && $request->is_interested !== null && $request->is_interested !== '') {
+            $isInterested = filter_var($request->is_interested, FILTER_VALIDATE_BOOLEAN, FILTER_NULL_ON_FAILURE);
+            if ($isInterested !== null) {
+                if ($isInterested) {
+                    $query->whereHas('participants', function ($q) use ($user) {
+                        $q->where('user_id', $user->id)->where('status', 'interested');
+                    });
+                } else {
+                    $query->whereDoesntHave('participants', function ($q) use ($user) {
+                        $q->where('user_id', $user->id)->where('status', 'interested');
+                    });
+                }
+            }
+        }
+
+        // Filter by user joined status
+        if ($request->has('is_joined') && $request->is_joined !== null && $request->is_joined !== '') {
+            $isJoined = filter_var($request->is_joined, FILTER_VALIDATE_BOOLEAN, FILTER_NULL_ON_FAILURE);
+            if ($isJoined !== null) {
+                if ($isJoined) {
+                    $query->whereHas('participants', function ($q) use ($user) {
+                        $q->where('user_id', $user->id)->where('status', 'joined');
+                    });
+                } else {
+                    $query->whereDoesntHave('participants', function ($q) use ($user) {
+                        $q->where('user_id', $user->id)->where('status', 'joined');
+                    });
+                }
+            }
+        }
+
+        $limit = 30;
+        if ($request->filled('limit')) {
+            $limit = min(max((int) $request->input('limit'), 1), 30);
+        } elseif ($request->filled('per_page')) {
+            $limit = min(max((int) $request->input('per_page'), 1), 30);
+        }
+
+        $events = $query->withCount([
+            'joinedUsers as joined_count',
+            'interestedUsers as interested_count'
+        ])
+            ->orderBy('distance', 'asc')
+            ->take($limit)
+            ->get();
+
+        $events->transform(function ($event) use ($user) {
+            $dist = isset($event->distance) ? (float) $event->distance : null;
+            $event->distance = $dist !== null ? round($dist, 2) : null;
+            $event->distance_in_km = $dist !== null ? round($dist * 1.60934, 2) : null;
+
+            $event->user_joined = $event->joinedUsers()->where('user_id', $user->id)->exists();
+            $event->user_interested = $event->interestedUsers()->where('user_id', $user->id)->exists();
+            return $event;
+        });
+
+        return $this->responseJson(true, 200, 'Events on map retrieved successfully', $events);
     }
 
     /**
@@ -231,13 +460,14 @@ class UserGeoMapController extends BaseController
      *     summary="Get list of suggested search preset cards",
      *     tags={"Map"},
      *     security={{"bearerAuth":{}}},
+     *     @OA\Parameter(name="search", in="query", required=false, @OA\Schema(type="string"), description="Optional keyword to filter suggested search options"),
      *     @OA\Response(
      *         response=200,
      *         description="Suggested searches retrieved successfully"
      *     )
      * )
      */
-    public function getSuggestedSearches()
+    public function getSuggestedSearches(Request $request)
     {
         $suggested = [
             [
@@ -269,6 +499,13 @@ class UserGeoMapController extends BaseController
                 "filter_params" => ["preset" => "connections", "audience" => "connections"]
             ],
             [
+                "key" => "favorites",
+                "title" => "Favorites",
+                "icon" => "⭐",
+                "badge" => null,
+                "filter_params" => ["preset" => "favorites"]
+            ],
+            [
                 "key" => "now_online",
                 "title" => "Now Online",
                 "icon" => "🟢",
@@ -290,6 +527,13 @@ class UserGeoMapController extends BaseController
                 "filter_params" => ["preset" => "updated_recently"]
             ]
         ];
+
+        $search = $request->input('search') ?? $request->input('query');
+        if (!empty($search)) {
+            $suggested = array_values(array_filter($suggested, function ($item) use ($search) {
+                return stripos($item['title'], $search) !== false || stripos($item['key'], $search) !== false;
+            }));
+        }
 
         return $this->responseJson(true, 200, "Suggested searches retrieved successfully", $suggested);
     }

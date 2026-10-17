@@ -8947,13 +8947,21 @@
                         }
                     },
                     {
-                        "name": "max_distance",
+                        "name": "search",
                         "in": "query",
-                        "description": "Maximum distance in miles",
+                        "description": "Search keyword matching name, username, display name, bio, or hobbies",
                         "required": false,
                         "schema": {
-                            "type": "integer",
-                            "default": 50
+                            "type": "string"
+                        }
+                    },
+                    {
+                        "name": "max_distance",
+                        "in": "query",
+                        "description": "Maximum distance in miles (optional)",
+                        "required": false,
+                        "schema": {
+                            "type": "integer"
                         }
                     },
                     {
@@ -8974,13 +8982,11 @@
                     {
                         "name": "gender",
                         "in": "query",
-                        "description": "Filter by gender identities",
+                        "description": "Filter by gender identities. Accepts single or multiple comma-separated IDs (e.g. 1,2). Suggestions: 1:Male, 2:Female, 3:Trans Man, 4:Trans Woman, 5:Non-binary, 6:Agender, 7:Genderfluid, 8:Genderqueer, 9:Other",
                         "required": false,
                         "schema": {
-                            "type": "array",
-                            "items": {
-                                "type": "integer"
-                            }
+                            "type": "string",
+                            "example": "1,2"
                         }
                     },
                     {
@@ -9032,30 +9038,138 @@
                         "schema": {
                             "type": "string",
                             "enum": [
+                                "popular_nearby",
                                 "new_members",
+                                "verified_profiles",
+                                "connections",
+                                "favorites",
                                 "now_online",
                                 "recently_online",
-                                "updated_recently",
-                                "verified_profiles",
-                                "popular_nearby",
-                                "connections"
+                                "updated_recently"
                             ]
                         }
                     },
                     {
-                        "name": "per_page",
+                        "name": "limit",
                         "in": "query",
-                        "description": "Items per page",
+                        "description": "Maximum number of users to retrieve (at most 30)",
                         "required": false,
                         "schema": {
                             "type": "integer",
-                            "default": 20
+                            "default": 30,
+                            "maximum": 30
                         }
                     }
                 ],
                 "responses": {
                     "200": {
                         "description": "Users retrieved successfully"
+                    }
+                },
+                "security": [
+                    {
+                        "bearerAuth": []
+                    }
+                ]
+            }
+        },
+        "/api/map/events": {
+            "get": {
+                "tags": [
+                    "Map"
+                ],
+                "summary": "Get nearby active and upcoming events on the map based on proximity",
+                "operationId": "927914e7adf4387ad9e9d4695132495f",
+                "parameters": [
+                    {
+                        "name": "latitude",
+                        "in": "query",
+                        "description": "Latitude of center point",
+                        "required": false,
+                        "schema": {
+                            "type": "number",
+                            "format": "float"
+                        }
+                    },
+                    {
+                        "name": "longitude",
+                        "in": "query",
+                        "description": "Longitude of center point",
+                        "required": false,
+                        "schema": {
+                            "type": "number",
+                            "format": "float"
+                        }
+                    },
+                    {
+                        "name": "search",
+                        "in": "query",
+                        "description": "Search events by title, description, location, host name, or tags",
+                        "required": false,
+                        "schema": {
+                            "type": "string"
+                        }
+                    },
+                    {
+                        "name": "max_distance",
+                        "in": "query",
+                        "description": "Maximum distance in miles (optional)",
+                        "required": false,
+                        "schema": {
+                            "type": "integer"
+                        }
+                    },
+                    {
+                        "name": "audience",
+                        "in": "query",
+                        "description": "Filter events by audience type (e.g. Friends, All, Community)",
+                        "required": false,
+                        "schema": {
+                            "type": "string"
+                        }
+                    },
+                    {
+                        "name": "tag",
+                        "in": "query",
+                        "description": "Filter events by tag (e.g. Party, Nightlife)",
+                        "required": false,
+                        "schema": {
+                            "type": "string"
+                        }
+                    },
+                    {
+                        "name": "is_interested",
+                        "in": "query",
+                        "description": "Filter events by user interest status",
+                        "required": false,
+                        "schema": {
+                            "type": "boolean"
+                        }
+                    },
+                    {
+                        "name": "is_joined",
+                        "in": "query",
+                        "description": "Filter events by user joined status",
+                        "required": false,
+                        "schema": {
+                            "type": "boolean"
+                        }
+                    },
+                    {
+                        "name": "limit",
+                        "in": "query",
+                        "description": "Maximum number of events to retrieve (at most 30)",
+                        "required": false,
+                        "schema": {
+                            "type": "integer",
+                            "default": 30,
+                            "maximum": 30
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "Events retrieved successfully"
                     }
                 },
                 "security": [
@@ -9072,6 +9186,17 @@
                 ],
                 "summary": "Get list of suggested search preset cards",
                 "operationId": "d8b6bea51f0183398e7dcd74549f1441",
+                "parameters": [
+                    {
+                        "name": "search",
+                        "in": "query",
+                        "description": "Optional keyword to filter suggested search options",
+                        "required": false,
+                        "schema": {
+                            "type": "string"
+                        }
+                    }
+                ],
                 "responses": {
                     "200": {
                         "description": "Suggested searches retrieved successfully"

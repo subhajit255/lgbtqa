@@ -287,6 +287,7 @@ Route::middleware(['auth:api', \App\Http\Middleware\UpdateUserLastActivity::clas
     Route::controller(UserGeoMapController::class)->prefix('map')->group(function () {
         Route::post('/location', 'addOrUpdateCurrentLocation');
         Route::get('/users', 'getUsersOnMap');
+        Route::get('/events', 'getEventsOnMap');
         Route::get('/suggested-searches', 'getSuggestedSearches');
         Route::get('/recent', 'getRecentSearches');
         Route::post('/recent', 'addRecentSearch');
