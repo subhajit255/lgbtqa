@@ -200,19 +200,33 @@ Route::middleware(['auth:api', \App\Http\Middleware\UpdateUserLastActivity::clas
 
     // Event Routes
     Route::controller(EventApiController::class)->prefix('events')->group(function () {
-        // Events
-        Route::get('events', [EventApiController::class, 'index']);
-        Route::post('events/create', [EventApiController::class, 'store']);
-        Route::get('events/{uuid}', [EventApiController::class, 'show']);
-        Route::post('events/update/{uuid}', [EventApiController::class, 'update']);
-        Route::delete('events/delete/{uuid}', [EventApiController::class, 'destroy']);
-        Route::post('events/{uuid}/join', [EventApiController::class, 'toggleJoin']);
-        Route::post('events/{uuid}/interest', [EventApiController::class, 'toggleInterest']);
-        Route::post('events/{uuid}/save', [EventApiController::class, 'toggleSave']);
-        Route::post('events/{uuid}/share', [EventApiController::class, 'shareEvent']);
-        Route::post('events/{uuid}/report', [EventApiController::class, 'reportEvent']);
-        Route::post('events/{uuid}/remind', [EventReminderApiController::class, 'setReminder']);
-        Route::post('events/{uuid}/remove-reminder', [EventReminderApiController::class, 'removeReminder']);
+        // Standard endpoints (matching Swagger documentation: /api/events, /api/events/{uuid}, etc.)
+        Route::get('/', [EventApiController::class, 'index']);
+        Route::post('/create', [EventApiController::class, 'store']);
+        Route::get('/{uuid}', [EventApiController::class, 'show']);
+        Route::post('/update/{uuid}', [EventApiController::class, 'update']);
+        Route::delete('/delete/{uuid}', [EventApiController::class, 'destroy']);
+        Route::post('/{uuid}/join', [EventApiController::class, 'toggleJoin']);
+        Route::post('/{uuid}/interest', [EventApiController::class, 'toggleInterest']);
+        Route::post('/{uuid}/save', [EventApiController::class, 'toggleSave']);
+        Route::post('/{uuid}/share', [EventApiController::class, 'shareEvent']);
+        Route::post('/{uuid}/report', [EventApiController::class, 'reportEvent']);
+        Route::post('/{uuid}/remind', [EventReminderApiController::class, 'setReminder']);
+        Route::post('/{uuid}/remove-reminder', [EventReminderApiController::class, 'removeReminder']);
+
+        // Backward compatibility fallback aliases for double-prefixed paths (/api/events/events/...)
+        Route::get('/events', [EventApiController::class, 'index']);
+        Route::post('/events/create', [EventApiController::class, 'store']);
+        Route::get('/events/{uuid}', [EventApiController::class, 'show']);
+        Route::post('/events/update/{uuid}', [EventApiController::class, 'update']);
+        Route::delete('/events/delete/{uuid}', [EventApiController::class, 'destroy']);
+        Route::post('/events/{uuid}/join', [EventApiController::class, 'toggleJoin']);
+        Route::post('/events/{uuid}/interest', [EventApiController::class, 'toggleInterest']);
+        Route::post('/events/{uuid}/save', [EventApiController::class, 'toggleSave']);
+        Route::post('/events/{uuid}/share', [EventApiController::class, 'shareEvent']);
+        Route::post('/events/{uuid}/report', [EventApiController::class, 'reportEvent']);
+        Route::post('/events/{uuid}/remind', [EventReminderApiController::class, 'setReminder']);
+        Route::post('/events/{uuid}/remove-reminder', [EventReminderApiController::class, 'removeReminder']);
     });
 
     // Community Routes

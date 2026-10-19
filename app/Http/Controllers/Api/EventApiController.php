@@ -5,6 +5,7 @@ namespace App\Http\Controllers\Api;
 use App\Http\Controllers\Controller;
 use App\Models\Event;
 use App\Models\EventParticipant;
+use App\Models\Location;
 use App\Models\Notification;
 use App\Traits\UploadAble;
 use Illuminate\Http\Request;
@@ -100,6 +101,7 @@ class EventApiController extends Controller
                 $q->where('title', 'like', "%{$search}%")
                   ->orWhere('description', 'like', "%{$search}%")
                   ->orWhere('location', 'like', "%{$search}%")
+                  ->orWhere('location_string', 'like', "%{$search}%")
                   ->orWhere('host_name', 'like', "%{$search}%");
             });
         }
@@ -522,10 +524,10 @@ class EventApiController extends Controller
 
         \App\Models\Report::create([
             'reporter_id' => $userId,
-            'reported_id' => $event->id,
-            'report_type' => 'event',
+            'reportable_type' => Event::class,
+            'reportable_id' => $event->id,
             'reason' => $request->reason,
-            'status' => 'pending'
+            'status' => 'PENDING'
         ]);
 
         return response()->json([
@@ -610,7 +612,7 @@ class EventApiController extends Controller
                 "description" => $request->description,
                 "about" => $request->about,
                 "event_date" => $request->event_date,
-                "start_time" => $request->start_time,
+                "start_time" => $request->start_time ?? ($request->is_all_day ? '12:00 AM' : null),
                 "end_time" => $request->end_time,
                 "location_string" => $request->location_string ?? $request->location,
                 "location_id" => $request->location_id,
@@ -626,6 +628,18 @@ class EventApiController extends Controller
                 "audience" => $request->audience ?? 'Friends',
                 "is_active" => 1,
             ];
+
+            if (!empty($request->location_id)) {
+                $linkedLocation = Location::find($request->location_id);
+                if ($linkedLocation) {
+                    $postData['lat'] = $linkedLocation->lat;
+                    $postData['lng'] = $linkedLocation->lng;
+                    if (empty($postData['location_string'])) {
+                        $postData['location_string'] = $linkedLocation->address ?: $linkedLocation->name;
+                    }
+                }
+            }
+            $postData['location'] = $postData['location_string'] ?? null;
 
             if ($request->hasFile('file')) {
                 $image = $request->file('file');
@@ -767,7 +781,7 @@ class EventApiController extends Controller
                 "description" => $request->description,
                 "about" => $request->about,
                 "event_date" => $request->event_date,
-                "start_time" => $request->start_time,
+                "start_time" => $request->start_time ?? ($request->is_all_day ? '12:00 AM' : null),
                 "end_time" => $request->end_time,
                 "location_string" => $request->location_string ?? $request->location,
                 "location_id" => $request->location_id,
@@ -781,6 +795,20 @@ class EventApiController extends Controller
                 "tags" => $request->tags,
                 "audience" => $request->audience ?? 'Friends',
             ];
+
+            if (!empty($request->location_id)) {
+                $linkedLocation = Location::find($request->location_id);
+                if ($linkedLocation) {
+                    $postData['lat'] = $linkedLocation->lat;
+                    $postData['lng'] = $linkedLocation->lng;
+                    if (empty($postData['location_string'])) {
+                        $postData['location_string'] = $linkedLocation->address ?: $linkedLocation->name;
+                    }
+                }
+            }
+            if (isset($postData['location_string'])) {
+                $postData['location'] = $postData['location_string'];
+            }
 
             if ($request->hasFile('file')) {
                 $image = $request->file('file');

@@ -31,7 +31,7 @@ class EventController extends BaseController
                 'description' => 'nullable|string',
                 'about' => 'nullable|string',
                 'event_date' => 'required|date',
-                'start_time' => 'required|string',
+                'start_time' => 'required_unless:is_all_day,1|nullable|string',
                 'end_time' => 'nullable|string',
                 'is_all_day' => 'boolean',
                 'time_zone' => 'nullable|string|max:100',
@@ -66,7 +66,7 @@ class EventController extends BaseController
                     "description" => $request->description,
                     "about" => $request->about,
                     "event_date" => $request->event_date,
-                    "start_time" => $request->start_time,
+                    "start_time" => $request->start_time ?? ($request->is_all_day ? '12:00 AM' : null),
                     "end_time" => $request->end_time,
                     "is_all_day" => $request->is_all_day ?? 0,
                     "time_zone" => $request->time_zone,
@@ -83,6 +83,18 @@ class EventController extends BaseController
                     "admin_status" => $request->admin_status ?? 'DRAFT',
                     "is_active" => $request->is_active ?? 1,
                 ];
+
+                if (!empty($request->location_id)) {
+                    $linkedLocation = Location::find($request->location_id);
+                    if ($linkedLocation) {
+                        $postData['lat'] = $linkedLocation->lat;
+                        $postData['lng'] = $linkedLocation->lng;
+                        if (empty($postData['location_string'])) {
+                            $postData['location_string'] = $linkedLocation->address ?: $linkedLocation->name;
+                        }
+                    }
+                }
+                $postData['location'] = $postData['location_string'] ?? null;
 
                 // Handle Event Main Image Upload
                 if ($request->hasFile('file')) {

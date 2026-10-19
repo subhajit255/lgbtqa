@@ -62,7 +62,13 @@
                                             <td>
                                                 <div class="d-flex flex-column">
                                                     <span class="text-gray-800 fw-semibold">{{ Carbon\Carbon::parse($detail->event_date)->format('M d, Y') }}</span>
-                                                    <span class="text-muted fs-7">{{ $detail->start_time }} - {{ $detail->end_time }}</span>
+                                                    <span class="text-muted fs-7">
+                                                        @if(!empty($detail->is_all_day))
+                                                            All Day
+                                                        @else
+                                                            {{ $detail->start_time }}{{ $detail->end_time ? ' - ' . $detail->end_time : '' }}
+                                                        @endif
+                                                    </span>
                                                 </div>
                                             </td>
                                             <td>{{ $detail->location }}</td>

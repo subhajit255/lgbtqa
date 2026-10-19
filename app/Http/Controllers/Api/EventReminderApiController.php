@@ -48,7 +48,8 @@ class EventReminderApiController extends BaseController
             return $this->responseJson(false, 400, 'Invalid reminder type');
         }
 
-        $eventDate = \Carbon\Carbon::parse($event->event_date . ' ' . $event->start_time);
+        $startTime = !empty($event->start_time) ? $event->start_time : '00:00:00';
+        $eventDate = \Carbon\Carbon::parse($event->event_date . ' ' . $startTime);
 
         $remindAt = null;
         if ($type === '1_DAY_BEFORE') {

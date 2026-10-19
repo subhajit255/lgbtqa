@@ -22,6 +22,8 @@ class EventActionsTest extends TestCase
         $eventId = DB::table('events')->insertGetId([
             'uuid' => $eventUuid,
             'title' => 'Test Event',
+            'event_date' => now()->toDateString(),
+            'start_time' => '10:00 AM',
             'created_at' => now(),
             'updated_at' => now(),
         ]);
@@ -33,7 +35,7 @@ class EventActionsTest extends TestCase
         $response->assertStatus(200);
         $response->assertJson([
             'status' => true,
-            'message' => 'Reminder set successfully.'
+            'message' => 'Reminder set successfully'
         ]);
 
         $this->assertDatabaseHas('event_reminders', [
@@ -49,6 +51,8 @@ class EventActionsTest extends TestCase
         $eventId = DB::table('events')->insertGetId([
             'uuid' => $eventUuid,
             'title' => 'Test Event',
+            'event_date' => now()->toDateString(),
+            'start_time' => '10:00 AM',
             'created_at' => now(),
             'updated_at' => now(),
         ]);
@@ -64,7 +68,7 @@ class EventActionsTest extends TestCase
         $response->assertStatus(200);
         $response->assertJson([
             'status' => true,
-            'message' => 'Reminder removed successfully.'
+            'message' => 'Reminder removed successfully'
         ]);
 
         $this->assertDatabaseMissing('event_reminders', [
@@ -80,6 +84,8 @@ class EventActionsTest extends TestCase
         $eventId = DB::table('events')->insertGetId([
             'uuid' => $eventUuid,
             'title' => 'Test Event',
+            'event_date' => now()->toDateString(),
+            'start_time' => '10:00 AM',
             'created_at' => now(),
             'updated_at' => now(),
         ]);

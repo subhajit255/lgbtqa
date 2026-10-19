@@ -5,13 +5,13 @@ namespace Tests\Feature;
 use App\Models\Event;
 use App\Models\EventParticipant;
 use App\Models\User;
-use Illuminate\Foundation\Testing\DatabaseTransactions;
+use Illuminate\Foundation\Testing\RefreshDatabase;
 use Laravel\Passport\Passport;
 use Tests\TestCase;
 
 class EventListApiTest extends TestCase
 {
-    use DatabaseTransactions;
+    use RefreshDatabase;
 
     public function test_event_list_filters_by_is_interested()
     {

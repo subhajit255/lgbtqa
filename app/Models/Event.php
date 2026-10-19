@@ -12,7 +12,18 @@ class Event extends Model
 
     protected $guarded = [];
 
+    protected $casts = [
+        'is_all_day' => 'boolean',
+        'is_active' => 'integer',
+        'location_id' => 'integer',
+    ];
+
     protected $appends = ['image_path', 'host_image_path'];
+
+    public function getLocationAttribute($value)
+    {
+        return $value ?: ($this->location_string ?: ($this->locationInfo?->name ?? ''));
+    }
 
     public static function boot()
     {

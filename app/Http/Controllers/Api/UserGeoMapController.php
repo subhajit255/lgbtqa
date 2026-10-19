@@ -361,6 +361,7 @@ class UserGeoMapController extends BaseController
                             ->where(function ($inner) use ($currentTime) {
                                 $inner->whereNull('events.end_time')
                                     ->orWhere('events.end_time', '')
+                                    ->orWhere('events.is_all_day', 1)
                                     ->orWhere('events.end_time', '>=', $currentTime);
                             });
                     });
@@ -379,6 +380,7 @@ class UserGeoMapController extends BaseController
                     ->orWhere('events.description', 'like', "%{$search}%")
                     ->orWhere('events.about', 'like', "%{$search}%")
                     ->orWhere('events.location', 'like', "%{$search}%")
+                    ->orWhere('events.location_string', 'like', "%{$search}%")
                     ->orWhere('events.host_name', 'like', "%{$search}%")
                     ->orWhere('events.tags', 'like', "%{$search}%");
             });
