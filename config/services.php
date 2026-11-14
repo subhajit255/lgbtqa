@@ -37,4 +37,12 @@ return [
         'webhook_secret' => env('STRIPE_WEBHOOK_SECRET'),
     ],
 
+    'geoapify' => [
+        'api_key' => env('GEOAPIFY_API_KEY'),
+    ],
+
+    'google' => [
+        'maps_api_key' => env('GOOGLE_API_KEY'),
+    ],
+
 ];

@@ -4,13 +4,16 @@ namespace App\Http\Controllers\Api;
 
 use App\Http\Controllers\BaseController;
 use App\Http\Resources\Api\User\UserResource;
+use App\Models\AppSettingToggle;
 use App\Models\User;
 use App\Models\Event;
 use App\Models\UserFavouriteProfile;
 use App\Models\UserLocation;
 use App\Models\UserRecentSearch;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Schema;
 use Illuminate\Support\Facades\Validator;
 
 class UserGeoMapController extends BaseController
@@ -48,6 +51,7 @@ class UserGeoMapController extends BaseController
         $validator = Validator::make($request->all(), [
             'latitude' => 'required',
             'longitude' => 'required',
+            'ghost_mode' => 'nullable|boolean',
         ]);
 
         if ($validator->fails()) {
@@ -60,14 +64,47 @@ class UserGeoMapController extends BaseController
             return $this->responseJson(false, 401, 'Unauthorized');
         }
 
+        $city = $this->getCity($request->latitude, $request->longitude);
+
+        $locationData = [
+            'lat' => $request->latitude,
+            'lng' => $request->longitude,
+            'last_pinged_at' => now(),
+        ];
+
+        if ($city && Schema::hasColumn('user_locations', 'city')) {
+            $locationData['city'] = $city;
+        }
+
+        if ($request->has('ghost_mode') && Schema::hasColumn('user_locations', 'ghost_mode')) {
+            $locationData['ghost_mode'] = $request->boolean('ghost_mode');
+        }
+
         $location = UserLocation::updateOrCreate(
             ['user_id' => $user->id],
-            [
-                'lat' => $request->latitude,
-                'lng' => $request->longitude,
-                'last_pinged_at' => now(),
-            ]
+            $locationData
         );
+
+        if ($city && $user->profile) {
+            $user->profile->update(['living_in_city' => $city]);
+        }
+
+        if ($request->has('ghost_mode')) {
+            AppSettingToggle::updateOrCreate(
+                ['user_id' => $user->id],
+                ['ghost_mode' => $request->boolean('ghost_mode')]
+            );
+        }
+
+        $isGhostMode = false;
+        if (isset($location->ghost_mode)) {
+            $isGhostMode = (bool) $location->ghost_mode;
+        } else {
+            $isGhostMode = (bool) ($user->appSettingToggle?->ghost_mode ?? false);
+        }
+        $location->city = $city;
+        $location->ghost_mode = $isGhostMode;
+        $location->map_dimmed = $isGhostMode;
 
         return $this->responseJson(true, 200, 'Location updated successfully', $location);
     }
@@ -291,10 +328,20 @@ class UserGeoMapController extends BaseController
             $query->orderBy('distance', 'asc');
         }
 
-        $users = $query->with(['profile', 'userLocation'])
+        $users = $query->with(['profile', 'userLocation', 'appSettingToggle'])
             ->take($limit)
             ->get();
-        return $this->responseJson(true, 200, 'Users on map retrieved successfully', UserResource::collection($users));
+
+        $currentUserGhostMode = (bool) ($user->appSettingToggle?->ghost_mode ?? false);
+
+        return response()->json([
+            'status'        => true,
+            'response_code' => 200,
+            'message'       => 'Users on map retrieved successfully',
+            'data'          => UserResource::collection($users),
+        ], 200)
+            ->header('X-Ghost-Mode', $currentUserGhostMode ? '1' : '0')
+            ->header('X-Map-Dimmed', $currentUserGhostMode ? '1' : '0');
     }
 
     /**
@@ -707,5 +754,327 @@ class UserGeoMapController extends BaseController
             logger($e->getMessage() . '-' . $e->getLine() . '-' . $e->getFile());
             return $this->responseJson(false, 500, 'Something went wrong');
         }
+    }
+
+    /**
+     * @OA\Get(
+     *     path="/api/map/ghost-mode",
+     *     summary="Get Ghost Mode status for authenticated user",
+     *     description="Retrieve Ghost Mode status, whether map is dimmed, and resolved city name",
+     *     tags={"Map"},
+     *     security={{"bearerAuth":{}}},
+     *     @OA\Response(
+     *         response=200,
+     *         description="Ghost mode status retrieved successfully",
+     *         @OA\JsonContent(
+     *             type="object",
+     *             @OA\Property(property="status", type="boolean", example=true),
+     *             @OA\Property(property="response_code", type="integer", example=200),
+     *             @OA\Property(property="message", type="string", example="Ghost mode status retrieved successfully"),
+     *             @OA\Property(
+     *                 property="data",
+     *                 type="object",
+     *                 @OA\Property(property="is_ghost_mode", type="boolean", example=true),
+     *                 @OA\Property(property="ghost_mode", type="boolean", example=true),
+     *                 @OA\Property(property="map_dimmed", type="boolean", example=true),
+     *                 @OA\Property(property="city", type="string", example="New York"),
+     *                 @OA\Property(property="approximate_region_radius_km", type="integer", example=5)
+     *             )
+     *         )
+     *     ),
+     *     @OA\Response(response=401, description="Unauthorized")
+     * )
+     */
+    public function getGhostMode(Request $request)
+    {
+        $user = auth()->user();
+        if (!$user) {
+            return $this->responseJson(false, 401, 'Unauthorized');
+        }
+
+        $toggle = AppSettingToggle::firstOrCreate(
+            ['user_id' => $user->id],
+            ['ghost_mode' => false]
+        );
+
+        $userLocation = UserLocation::where('user_id', $user->id)->first();
+        $isGhost = false;
+        if ($userLocation && isset($userLocation->ghost_mode)) {
+            $isGhost = (bool) $userLocation->ghost_mode;
+        } else {
+            $isGhost = (bool) $toggle->ghost_mode;
+        }
+        $city = $userLocation?->city ?? $user->profile?->living_in_city;
+
+        if (!$city && $userLocation && $userLocation->lat && $userLocation->lng) {
+            $city = $this->getCity($userLocation->lat, $userLocation->lng);
+        }
+
+        return $this->responseJson(true, 200, 'Ghost mode status retrieved successfully', [
+            'is_ghost_mode' => $isGhost,
+            'ghost_mode' => $isGhost,
+            'map_dimmed' => $isGhost,
+            'city' => $city,
+            'approximate_region_radius_km' => 5,
+            'how_it_works' => [
+                'Your exact location is hidden from all users',
+                'Only your city is shown (no GPS coordinates)',
+                'Optional approximate region (3-10 km radius)',
+                'Map appears dimmed when active',
+                'You can still browse and match with others',
+            ],
+            'note' => "Ghost Mode is independent from matching visibility. You'll still appear in card stacks based on your profile settings.",
+        ]);
+    }
+
+    /**
+     * @OA\Post(
+     *     path="/api/map/ghost-mode",
+     *     summary="Enable, disable, or toggle Ghost Mode on the map",
+     *     description="Toggle Ghost Mode. When active, exact GPS location is hidden, only city and approximate 3-10km region are shown, and the map appears dimmed.",
+     *     tags={"Map"},
+     *     security={{"bearerAuth":{}}},
+     *     @OA\RequestBody(
+     *         required=false,
+     *         @OA\JsonContent(
+     *             @OA\Property(property="ghost_mode", type="boolean", example=true, description="True to enable, false to disable. If omitted, toggles current value.")
+     *         )
+     *     ),
+     *     @OA\Response(
+     *         response=200,
+     *         description="Ghost mode updated successfully"
+     *     ),
+     *     @OA\Response(response=401, description="Unauthorized")
+     * )
+     */
+    public function updateGhostMode(Request $request)
+    {
+        $user = auth()->user();
+        if (!$user) {
+            return $this->responseJson(false, 401, 'Unauthorized');
+        }
+
+        $toggle = AppSettingToggle::firstOrCreate(
+            ['user_id' => $user->id],
+            ['ghost_mode' => false]
+        );
+
+        if ($request->has('ghost_mode')) {
+            $enableGhost = $request->boolean('ghost_mode');
+        } elseif ($request->has('enable')) {
+            $enableGhost = $request->boolean('enable');
+        } else {
+            $enableGhost = !$toggle->ghost_mode;
+        }
+
+        $toggle->ghost_mode = $enableGhost;
+        $toggle->save();
+
+        $userLocation = UserLocation::where('user_id', $user->id)->first();
+        if ($userLocation && Schema::hasColumn('user_locations', 'ghost_mode')) {
+            $userLocation->update(['ghost_mode' => $enableGhost]);
+        }
+
+        // Resolve and cache city if ghost mode is enabled
+        $city = $userLocation?->city ?? $user->profile?->living_in_city;
+
+        if ($userLocation && $userLocation->lat && $userLocation->lng) {
+            $resolvedCity = $this->getCity($userLocation->lat, $userLocation->lng);
+            if ($resolvedCity) {
+                $city = $resolvedCity;
+                if (Schema::hasColumn('user_locations', 'city')) {
+                    $userLocation->update(['city' => $city]);
+                }
+                if ($user->profile) {
+                    $user->profile->update(['living_in_city' => $city]);
+                }
+            }
+        }
+
+        $msg = $enableGhost ? 'Ghost mode enabled successfully' : 'Ghost mode disabled successfully';
+
+        return $this->responseJson(true, 200, $msg, [
+            'is_ghost_mode' => $enableGhost,
+            'ghost_mode' => $enableGhost,
+            'map_dimmed' => $enableGhost,
+            'city' => $city,
+            'approximate_region_radius_km' => 5,
+        ]);
+    }
+
+    /**
+     * Reverse geocode coordinates to find city name.
+     * Uses API keys configured in .env (GEOAPIFY_API_KEY or GOOGLE_API_KEY).
+     * Cached by rounded coordinates for high performance and reliability.
+     */
+    public function getCity($latitude, $longitude)
+    {
+        return self::resolveCity($latitude, $longitude);
+    }
+
+    /**
+     * Static helper to resolve city name using GOOGLE_API_KEY from .env (with fallback).
+     */
+    public static function resolveCity($latitude, $longitude)
+    {
+        if (empty($latitude) || empty($longitude)) {
+            return null;
+        }
+
+        $cacheKey = 'geo_city_' . round((float) $latitude, 2) . '_' . round((float) $longitude, 2);
+
+        return Cache::remember($cacheKey, now()->addDays(30), function () use ($latitude, $longitude) {
+            $googleKey = env('GOOGLE_API_KEY') 
+                ?? config('constants.GEOLOCATION_API_KEY') 
+                ?? config('services.google.maps_api_key');
+
+            $geoapifyKey = env('GEOAPIFY_API_KEY') 
+                ?? config('services.geoapify.api_key') 
+                ?? config('constants.GEOAPIFY_API_KEY');
+
+            // 1. Primary: Use GOOGLE_API_KEY from .env with Google Geocoding API
+            if (!empty($googleKey)) {
+                $city = self::fetchCityFromGoogle($latitude, $longitude, $googleKey);
+                if (!empty($city)) {
+                    return $city;
+                }
+
+                // If GOOGLE_API_KEY holds a Geoapify / alternate key
+                $cityGeo = self::fetchCityFromGeoapify($latitude, $longitude, $googleKey);
+                if (!empty($cityGeo)) {
+                    return $cityGeo;
+                }
+            }
+
+            // 2. Fallback: Try Geoapify if configured
+            if (!empty($geoapifyKey)) {
+                $city = self::fetchCityFromGeoapify($latitude, $longitude, $geoapifyKey);
+                if (!empty($city)) {
+                    return $city;
+                }
+            }
+
+            return null;
+        });
+    }
+
+    /**
+     * Fetch city using Geoapify Reverse Geocoding API.
+     */
+    private static function fetchCityFromGeoapify($latitude, $longitude, $apiKey)
+    {
+        $curl = curl_init();
+        curl_setopt_array($curl, [
+            CURLOPT_URL => sprintf('https://api.geoapify.com/v1/geocode/reverse?lat=%s&lon=%s&format=json&apiKey=%s', $latitude, $longitude, urlencode($apiKey)),
+            CURLOPT_RETURNTRANSFER => true,
+            CURLOPT_FOLLOWLOCATION => true,
+            CURLOPT_TIMEOUT => 5,
+        ]);
+
+        $response = curl_exec($curl);
+        $httpCode = curl_getinfo($curl, CURLINFO_HTTP_CODE);
+        curl_close($curl);
+
+        if ($httpCode !== 200 || empty($response)) {
+            return null;
+        }
+
+        $data = json_decode($response, true);
+        if (!empty($data['results'][0]['city'])) {
+            return $data['results'][0]['city'];
+        }
+        if (!empty($data['results'][0]['town'])) {
+            return $data['results'][0]['town'];
+        }
+        if (!empty($data['results'][0]['county'])) {
+            return $data['results'][0]['county'];
+        }
+        if (!empty($data['results'][0]['state'])) {
+            return $data['results'][0]['state'];
+        }
+
+        return null;
+    }
+
+    /**
+     * Fetch city using Google Maps Geocoding API.
+     */
+    private static function fetchCityFromGoogle($latitude, $longitude, $apiKey)
+    {
+        $curl = curl_init();
+        curl_setopt_array($curl, [
+            CURLOPT_URL => sprintf('https://maps.googleapis.com/maps/api/geocode/json?latlng=%s,%s&key=%s', $latitude, $longitude, urlencode($apiKey)),
+            CURLOPT_RETURNTRANSFER => true,
+            CURLOPT_FOLLOWLOCATION => true,
+            CURLOPT_TIMEOUT => 5,
+        ]);
+
+        $response = curl_exec($curl);
+        $httpCode = curl_getinfo($curl, CURLINFO_HTTP_CODE);
+        curl_close($curl);
+
+        if ($httpCode !== 200 || empty($response)) {
+            return null;
+        }
+
+        $data = json_decode($response, true);
+        if (!empty($data['results'])) {
+            foreach ($data['results'] as $result) {
+                if (isset($result['address_components'])) {
+                    foreach ($result['address_components'] as $component) {
+                        if (in_array('locality', $component['types'])) {
+                            return $component['long_name'];
+                        }
+                    }
+                }
+            }
+            foreach ($data['results'] as $result) {
+                if (isset($result['address_components'])) {
+                    foreach ($result['address_components'] as $component) {
+                        if (in_array('administrative_area_level_2', $component['types'])) {
+                            return $component['long_name'];
+                        }
+                    }
+                }
+            }
+        }
+
+        return null;
+    }
+
+    /**
+     * Compute approximate region coordinates within a 3-10 km radius for Ghost Mode.
+     */
+    public static function getApproximateCoordinates($latitude, $longitude, $userId = null, $radiusKm = 5.0)
+    {
+        if (empty($latitude) || empty($longitude)) {
+            return [
+                'approximate_latitude' => null,
+                'approximate_longitude' => null,
+                'approximate_radius_km' => $radiusKm,
+            ];
+        }
+
+        // Use deterministic seed based on user ID and day of year so the approximate region is stable for the day
+        $seed = ($userId ?? 1) + (int) date('z');
+        mt_srand($seed);
+
+        // Distance between 3 km and 7 km (within 3-10 km radius)
+        $distance = 3.0 + (mt_rand(0, 400) / 100);
+        $angle = mt_rand(0, 360) * (M_PI / 180);
+
+        mt_srand(); // Reset random seed
+
+        $deltaLat = ($distance * cos($angle)) / 111.0;
+        $deltaLng = ($distance * sin($angle)) / (111.0 * max(0.1, cos(deg2rad((float) $latitude))));
+
+        $approxLat = round((float) $latitude + $deltaLat, 6);
+        $approxLng = round((float) $longitude + $deltaLng, 6);
+
+        return [
+            'approximate_latitude' => $approxLat,
+            'approximate_longitude' => $approxLng,
+            'approximate_radius_km' => (float) $radiusKm,
+        ];
     }
 }

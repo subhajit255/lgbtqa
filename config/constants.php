@@ -16,4 +16,5 @@ return [
     'CATCH_ERROR_MSG' => 'Internal server error. Please try again later.',
     'GEOLOCATION_API' => 'https://maps.googleapis.com/maps/api/geocode/json',
     'GEOLOCATION_API_KEY' => env('GOOGLE_API_KEY'),
+    'GEOAPIFY_API_KEY' => env('GEOAPIFY_API_KEY'),
 ];

@@ -2,6 +2,7 @@
 
 namespace App\Http\Resources\Api\User;
 
+use App\Http\Controllers\Api\UserGeoMapController;
 use Illuminate\Http\Request;
 use Illuminate\Http\Resources\Json\JsonResource;
 
@@ -14,6 +15,63 @@ class UserResource extends JsonResource
      */
     public function toArray(Request $request): array
     {
+        $viewer = auth()->user();
+        $isSelf = $viewer && $viewer->id === $this->id;
+
+        // Check if ghost mode is enabled for this user (checks user_locations and app_setting_toggles)
+        $isGhostMode = false;
+        if ($this->userLocation && isset($this->userLocation->ghost_mode)) {
+            $isGhostMode = (bool) $this->userLocation->ghost_mode;
+        } elseif ($this->relationLoaded('appSettingToggle')) {
+            $isGhostMode = (bool) ($this->appSettingToggle?->ghost_mode ?? false);
+        } else {
+            $isGhostMode = (bool) ($this->appSettingToggle?->ghost_mode ?? false);
+        }
+
+        $rawLat = $this->userLocation?->lat;
+        $rawLng = $this->userLocation?->lng;
+
+        // Get city name (stored or resolved via Geoapify reverse geocoding)
+        $city = $this->userLocation?->city ?? $this->profile?->living_in_city;
+        if (!$city && $rawLat && $rawLng) {
+            $city = UserGeoMapController::resolveCity($rawLat, $rawLng);
+        }
+
+        // When Ghost Mode is enabled:
+        // - Exact location is hidden from all users (latitude & longitude = null)
+        // - Only city is shown (no GPS coordinates)
+        // - Optional approximate region (3-10 km radius)
+        if ($isGhostMode && !$isSelf) {
+            $latitude = null;
+            $longitude = null;
+            $approx = UserGeoMapController::getApproximateCoordinates($rawLat, $rawLng, $this->id, 5.0);
+            $approxLat = $approx['approximate_latitude'];
+            $approxLng = $approx['approximate_longitude'];
+            $approxRadius = $approx['approximate_radius_km'];
+
+            $distance = $this->when(isset($this->distance), function () {
+                return round(ceil((float) $this->distance / 3) * 3, 0);
+            }) ?? 0;
+
+            $distanceInKm = $this->when(isset($this->distance), function () {
+                return round(ceil(((float) $this->distance * 1.60934) / 5) * 5, 0);
+            }) ?? 0;
+        } else {
+            $latitude = $rawLat;
+            $longitude = $rawLng;
+            $approxLat = null;
+            $approxLng = null;
+            $approxRadius = null;
+
+            $distance = $this->when(isset($this->distance), function () {
+                return round((float) $this->distance, 2);
+            }) ?? 0;
+
+            $distanceInKm = $this->when(isset($this->distance), function () {
+                return round((float) $this->distance * 1.60934, 2);
+            }) ?? 0;
+        }
+
         return [
             'id' => $this->id,
             'uuid' => $this->uuid,
@@ -32,16 +90,17 @@ class UserResource extends JsonResource
             'is_approve' => $this->is_approve,
             'is_blocked' => $this->is_blocked,
             'is_delete' => $this->is_delete,
-            'distance' => $this->when(isset($this->distance), function () {
-                return round((float) $this->distance, 2);
-            }) ?? 0,
-            'distance_in_km' => $this->when(isset($this->distance), function () {
-                return round((float) $this->distance * 1.60934, 2);
-            }) ?? 0,
+            'distance' => $distance,
+            'distance_in_km' => $distanceInKm,
             'created_at' => $this->created_at,
             'updated_at' => $this->updated_at,
-            'latitude' => $this->userLocation?->lat,
-            'longitude' => $this->userLocation?->lng,
+            'city' => $city,
+            'is_ghost_mode' => $isGhostMode,
+            'latitude' => $latitude,
+            'longitude' => $longitude,
+            'approximate_latitude' => $approxLat,
+            'approximate_longitude' => $approxLng,
+            'approximate_radius_km' => $approxRadius,
         ];
     }
 }

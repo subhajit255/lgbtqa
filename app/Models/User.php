@@ -40,7 +40,7 @@ class User extends Authenticatable
         return $code;
     }
 
-    protected $appends = ['image_path', 'is_online', 'last_seen_at'];
+    protected $appends = ['image_path', 'is_online', 'last_seen_at', 'is_ghost_mode'];
 
     protected $guarded = [];
 
@@ -82,6 +82,14 @@ class User extends Authenticatable
     public function getLastSeenAtAttribute()
     {
         return Cache::get('user-last-seen-' . $this->id);
+    }
+
+    public function getIsGhostModeAttribute(): bool
+    {
+        if ($this->relationLoaded('userLocation') && isset($this->userLocation?->ghost_mode)) {
+            return (bool) $this->userLocation->ghost_mode;
+        }
+        return (bool) ($this->userLocation?->ghost_mode ?? $this->appSettingToggle?->ghost_mode ?? false);
     }
 
     public function profile()

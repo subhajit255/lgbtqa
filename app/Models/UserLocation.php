@@ -13,6 +13,7 @@ class UserLocation extends Model
     protected $guarded = [];
 
     protected $casts = [
+        'ghost_mode' => 'boolean',
         'last_pinged_at' => 'datetime',
     ];
 

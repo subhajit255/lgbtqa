@@ -308,5 +308,7 @@ Route::middleware(['auth:api', \App\Http\Middleware\UpdateUserLastActivity::clas
         Route::delete('/recent/clear', 'clearRecentSearches');
         Route::delete('/recent/{id}', 'deleteRecentSearch');
         Route::post('/favourite/{user_id}', 'toggleFavourite');
+        Route::get('/ghost-mode', 'getGhostMode');
+        Route::post('/ghost-mode', 'updateGhostMode');
     });
 });
