@@ -294,7 +294,6 @@ class UserGeoMapController extends BaseController
         $users = $query->with(['profile', 'userLocation'])
             ->take($limit)
             ->get();
-
         return $this->responseJson(true, 200, 'Users on map retrieved successfully', UserResource::collection($users));
     }
 
