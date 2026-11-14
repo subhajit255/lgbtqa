@@ -8893,6 +8893,16 @@
                                         "type": "number",
                                         "format": "float",
                                         "example": -74.006
+                                    },
+                                    "city": {
+                                        "description": "Optional city name (auto-resolved from GPS if omitted)",
+                                        "type": "string",
+                                        "example": "New York"
+                                    },
+                                    "ghost_mode": {
+                                        "description": "Optional ghost mode state",
+                                        "type": "boolean",
+                                        "example": false
                                     }
                                 },
                                 "type": "object"
@@ -9330,11 +9340,6 @@
                                         "description": "Optional explicit boolean. If omitted, automatically toggles current state.",
                                         "type": "boolean",
                                         "example": true
-                                    },
-                                    "approximate_region_radius_km": {
-                                        "description": "Optional region radius in km (3-10 km). Defaults to 5.",
-                                        "type": "integer",
-                                        "example": 5
                                     }
                                 },
                                 "type": "object"
@@ -9374,10 +9379,6 @@
                                                 "city": {
                                                     "type": "string",
                                                     "example": "New York"
-                                                },
-                                                "approximate_region_radius_km": {
-                                                    "type": "integer",
-                                                    "example": 5
                                                 }
                                             },
                                             "type": "object"

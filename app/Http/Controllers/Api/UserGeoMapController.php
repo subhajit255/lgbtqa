@@ -13,6 +13,7 @@ use App\Models\UserRecentSearch;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Schema;
 use Illuminate\Support\Facades\Validator;
 
@@ -29,7 +30,9 @@ class UserGeoMapController extends BaseController
      *         @OA\JsonContent(
      *             required={"latitude", "longitude"},
      *             @OA\Property(property="latitude", type="number", format="float", example=40.7128, description="Latitude coordinate"),
-     *             @OA\Property(property="longitude", type="number", format="float", example=-74.0060, description="Longitude coordinate")
+     *             @OA\Property(property="longitude", type="number", format="float", example=-74.0060, description="Longitude coordinate"),
+     *             @OA\Property(property="city", type="string", example="New York", description="Optional city name (auto-resolved from GPS if omitted)"),
+     *             @OA\Property(property="ghost_mode", type="boolean", example=false, description="Optional ghost mode state")
      *         )
      *     ),
      *     @OA\Response(
@@ -51,6 +54,7 @@ class UserGeoMapController extends BaseController
         $validator = Validator::make($request->all(), [
             'latitude' => 'required',
             'longitude' => 'required',
+            'city' => 'nullable|string',
             'ghost_mode' => 'nullable|boolean',
         ]);
 
@@ -61,10 +65,30 @@ class UserGeoMapController extends BaseController
         $user = auth()->user();
 
         if (!$user) {
+            Log::warning('[MAP_LOCATION] Unauthorized attempt to update location');
             return $this->responseJson(false, 401, 'Unauthorized');
         }
 
-        $city = $this->getCity($request->latitude, $request->longitude);
+        Log::info('[MAP_LOCATION] Received location update request', [
+            'user_id' => $user->id,
+            'latitude' => $request->latitude,
+            'longitude' => $request->longitude,
+            'input_city' => $request->input('city'),
+            'ghost_mode' => $request->input('ghost_mode'),
+        ]);
+
+        // Prioritize explicit city if passed in request, otherwise resolve via reverse geocoding
+        $city = $request->filled('city') ? trim($request->input('city')) : null;
+        if (empty($city)) {
+            $city = $this->getCity($request->latitude, $request->longitude);
+        }
+
+        Log::info('[MAP_LOCATION] City determined for coordinates', [
+            'user_id' => $user->id,
+            'latitude' => $request->latitude,
+            'longitude' => $request->longitude,
+            'city' => $city,
+        ]);
 
         $locationData = [
             'lat' => $request->latitude,
@@ -72,21 +96,73 @@ class UserGeoMapController extends BaseController
             'last_pinged_at' => now(),
         ];
 
-        if ($city && Schema::hasColumn('user_locations', 'city')) {
+        if (!empty($city)) {
             $locationData['city'] = $city;
         }
 
-        if ($request->has('ghost_mode') && Schema::hasColumn('user_locations', 'ghost_mode')) {
+        if ($request->has('ghost_mode')) {
             $locationData['ghost_mode'] = $request->boolean('ghost_mode');
         }
 
-        $location = UserLocation::updateOrCreate(
-            ['user_id' => $user->id],
-            $locationData
-        );
+        Log::info('[MAP_LOCATION] Saving locationData to user_locations table', [
+            'user_id' => $user->id,
+            'locationData' => $locationData,
+        ]);
 
-        if ($city && $user->profile) {
-            $user->profile->update(['living_in_city' => $city]);
+        try {
+            $location = UserLocation::updateOrCreate(
+                ['user_id' => $user->id],
+                $locationData
+            );
+            Log::info('[MAP_LOCATION] user_locations record saved successfully', [
+                'user_id' => $user->id,
+                'location_id' => $location->id,
+                'saved_city' => $location->city ?? null,
+                'saved_lat' => $location->lat,
+                'saved_lng' => $location->lng,
+                'saved_ghost_mode' => $location->ghost_mode ?? null,
+            ]);
+        } catch (\Illuminate\Database\QueryException $e) {
+            Log::error('[MAP_LOCATION] Database QueryException when saving user_locations: ' . $e->getMessage(), [
+                'user_id' => $user->id,
+                'error_code' => $e->getCode(),
+                'sql' => $e->getSql() ?? null,
+            ]);
+
+            // Gracefully handle case where migration hasn't been run yet (missing city / ghost_mode column)
+            if (str_contains($e->getMessage(), 'Unknown column') || $e->getCode() == '42S22') {
+                Log::warning('[MAP_LOCATION] ATTENTION: Column missing in user_locations table on this database! Please run `php artisan migrate`. Retrying update without city/ghost_mode columns.');
+                unset($locationData['city'], $locationData['ghost_mode']);
+                $location = UserLocation::updateOrCreate(
+                    ['user_id' => $user->id],
+                    $locationData
+                );
+            } else {
+                throw $e;
+            }
+        }
+
+        // Always sync city to user profile living_in_city if available
+        if (!empty($city)) {
+            try {
+                if ($user->profile) {
+                    $user->profile->update(['living_in_city' => $city]);
+                    Log::info('[MAP_LOCATION] User profile living_in_city updated', [
+                        'user_id' => $user->id,
+                        'living_in_city' => $city,
+                    ]);
+                } else {
+                    $user->profile()->create(['living_in_city' => $city]);
+                    Log::info('[MAP_LOCATION] User profile created with living_in_city', [
+                        'user_id' => $user->id,
+                        'living_in_city' => $city,
+                    ]);
+                }
+            } catch (\Throwable $e) {
+                Log::error('[MAP_LOCATION] Error updating user profile living_in_city: ' . $e->getMessage(), [
+                    'user_id' => $user->id,
+                ]);
+            }
         }
 
         if ($request->has('ghost_mode')) {
@@ -766,8 +842,7 @@ class UserGeoMapController extends BaseController
      *     @OA\RequestBody(
      *         required=false,
      *         @OA\JsonContent(
-     *             @OA\Property(property="ghost_mode", type="boolean", example=true, description="Optional explicit boolean. If omitted, automatically toggles current state."),
-     *             @OA\Property(property="approximate_region_radius_km", type="integer", example=5, description="Optional region radius in km (3-10 km). Defaults to 5.")
+     *             @OA\Property(property="ghost_mode", type="boolean", example=true, description="Optional explicit boolean. If omitted, automatically toggles current state.")
      *         )
      *     ),
      *     @OA\Response(
@@ -783,8 +858,7 @@ class UserGeoMapController extends BaseController
      *                 type="object",
      *                 @OA\Property(property="ghost_mode", type="boolean", example=true),
      *                 @OA\Property(property="map_dimmed", type="boolean", example=true),
-     *                 @OA\Property(property="city", type="string", example="New York"),
-     *                 @OA\Property(property="approximate_region_radius_km", type="integer", example=5)
+     *                 @OA\Property(property="city", type="string", example="New York")
      *             )
      *         )
      *     ),
@@ -821,8 +895,15 @@ class UserGeoMapController extends BaseController
             $newStatus = !$currentStatus;
         }
 
-        // Determine approximate_region_radius_km (between 3 and 10 km, default 5)
-        $radius = 5;
+        Log::info('[GHOST_MODE] Toggle request processed', [
+            'user_id' => $user->id,
+            'current_status' => $currentStatus,
+            'requested_ghost_mode' => $request->input('ghost_mode'),
+            'new_status' => $newStatus,
+        ]);
+
+        // Determine approximate_region_radius_km (default 10 km, between 3 and 10 km)
+        $radius = 10;
         if ($request->filled('approximate_region_radius_km') && is_numeric($request->approximate_region_radius_km)) {
             $radius = min(max((int) $request->approximate_region_radius_km, 3), 10);
         } elseif ($userLocation && isset($userLocation->approximate_region_radius_km) && $userLocation->approximate_region_radius_km > 0) {
@@ -844,23 +925,45 @@ class UserGeoMapController extends BaseController
 
         // Update UserLocation with city, ghost_mode, and approximate_region_radius_km
         if ($userLocation) {
-            $updateData = [];
-            if ($city && Schema::hasColumn('user_locations', 'city')) {
+            $updateData = [
+                'ghost_mode' => $newStatus,
+                'approximate_region_radius_km' => $radius,
+            ];
+            if (!empty($city)) {
                 $updateData['city'] = $city;
             }
-            if (Schema::hasColumn('user_locations', 'ghost_mode')) {
-                $updateData['ghost_mode'] = $newStatus;
-            }
-            if (Schema::hasColumn('user_locations', 'approximate_region_radius_km')) {
-                $updateData['approximate_region_radius_km'] = $radius;
-            }
-            if (!empty($updateData)) {
+            try {
                 $userLocation->update($updateData);
+                Log::info('[GHOST_MODE] user_locations record updated', [
+                    'user_id' => $user->id,
+                    'updateData' => $updateData,
+                ]);
+            } catch (\Illuminate\Database\QueryException $e) {
+                Log::error('[GHOST_MODE] QueryException when updating user_locations: ' . $e->getMessage(), [
+                    'user_id' => $user->id,
+                ]);
+                if (str_contains($e->getMessage(), 'Unknown column') || $e->getCode() == '42S22') {
+                    Log::warning('[GHOST_MODE] Column missing in user_locations on server DB! Run `php artisan migrate`.');
+                    unset($updateData['city'], $updateData['ghost_mode'], $updateData['approximate_region_radius_km']);
+                    if (!empty($updateData)) {
+                        $userLocation->update($updateData);
+                    }
+                } else {
+                    throw $e;
+                }
             }
         }
 
-        if ($city && $user->profile) {
-            $user->profile->update(['living_in_city' => $city]);
+        if (!empty($city)) {
+            try {
+                if ($user->profile) {
+                    $user->profile->update(['living_in_city' => $city]);
+                } else {
+                    $user->profile()->create(['living_in_city' => $city]);
+                }
+            } catch (\Throwable $e) {
+                Log::error('[GHOST_MODE] Error updating user profile living_in_city: ' . $e->getMessage());
+            }
         }
 
         $message = $newStatus ? 'Ghost mode enabled successfully' : 'Ghost mode disabled successfully';
@@ -869,7 +972,6 @@ class UserGeoMapController extends BaseController
             'ghost_mode' => $newStatus,
             'map_dimmed' => $newStatus,
             'city' => $city,
-            'approximate_region_radius_km' => $newStatus ? $radius : null,
         ]);
     }
 
@@ -897,44 +999,76 @@ class UserGeoMapController extends BaseController
     public static function resolveCity($latitude, $longitude)
     {
         if (empty($latitude) || empty($longitude)) {
+            Log::warning('[GEOCODING] Coordinates are empty', ['lat' => $latitude, 'lng' => $longitude]);
             return null;
         }
 
         $cacheKey = 'geo_city_' . round((float) $latitude, 2) . '_' . round((float) $longitude, 2);
 
-        return Cache::remember($cacheKey, now()->addDays(30), function () use ($latitude, $longitude) {
-            $googleKey = env('GOOGLE_API_KEY')
-                ?? config('constants.GEOLOCATION_API_KEY')
-                ?? config('services.google.maps_api_key');
+        $cachedCity = Cache::get($cacheKey);
+        if (!empty($cachedCity)) {
+            Log::info("[GEOCODING] Cache hit for coordinates ($latitude, $longitude): $cachedCity");
+            return $cachedCity;
+        }
 
-            $geoapifyKey = env('GEOAPIFY_API_KEY')
-                ?? config('services.geoapify.api_key')
-                ?? config('constants.GEOAPIFY_API_KEY');
+        $googleKey = env('GOOGLE_API_KEY')
+            ?? config('constants.GEOLOCATION_API_KEY')
+            ?? config('services.google.maps_api_key');
 
-            // 1. Primary: Use GOOGLE_API_KEY from .env with Google Geocoding API
-            if (!empty($googleKey)) {
-                $city = self::fetchCityFromGoogle($latitude, $longitude, $googleKey);
-                if (!empty($city)) {
-                    return $city;
-                }
+        $googleBackupKey = env('GOOGLE_API_KEY_BACKUP');
 
-                // If GOOGLE_API_KEY holds a Geoapify / alternate key
-                $cityGeo = self::fetchCityFromGeoapify($latitude, $longitude, $googleKey);
-                if (!empty($cityGeo)) {
-                    return $cityGeo;
-                }
+        $geoapifyKey = env('GEOAPIFY_API_KEY')
+            ?? config('services.geoapify.api_key')
+            ?? config('constants.GEOAPIFY_API_KEY');
+
+        Log::info("[GEOCODING] Attempting to reverse geocode ($latitude, $longitude)", [
+            'has_google_key' => !empty($googleKey),
+            'google_key_prefix' => !empty($googleKey) ? substr($googleKey, 0, 8) . '...' : null,
+            'has_google_backup_key' => !empty($googleBackupKey),
+            'has_geoapify_key' => !empty($geoapifyKey),
+            'geoapify_key_prefix' => !empty($geoapifyKey) ? substr($geoapifyKey, 0, 8) . '...' : null,
+        ]);
+
+        // 1. Primary: Use GOOGLE_API_KEY from .env with Google Geocoding API
+        if (!empty($googleKey)) {
+            $city = self::fetchCityFromGoogle($latitude, $longitude, $googleKey);
+            if (!empty($city)) {
+                Log::info("[GEOCODING] Resolved city via Google Maps API: $city");
+                Cache::put($cacheKey, $city, now()->addDays(30));
+                return $city;
             }
 
-            // 2. Fallback: Try Geoapify if configured
-            if (!empty($geoapifyKey)) {
-                $city = self::fetchCityFromGeoapify($latitude, $longitude, $geoapifyKey);
-                if (!empty($city)) {
-                    return $city;
-                }
+            // If GOOGLE_API_KEY holds a Geoapify / alternate key
+            $cityGeo = self::fetchCityFromGeoapify($latitude, $longitude, $googleKey);
+            if (!empty($cityGeo)) {
+                Log::info("[GEOCODING] Resolved city via primary key on Geoapify: $cityGeo");
+                Cache::put($cacheKey, $cityGeo, now()->addDays(30));
+                return $cityGeo;
             }
+        }
 
-            return null;
-        });
+        // 2. Try Google Backup Key if present
+        if (!empty($googleBackupKey)) {
+            $city = self::fetchCityFromGoogle($latitude, $longitude, $googleBackupKey);
+            if (!empty($city)) {
+                Log::info("[GEOCODING] Resolved city via Google Backup Key: $city");
+                Cache::put($cacheKey, $city, now()->addDays(30));
+                return $city;
+            }
+        }
+
+        // 3. Fallback: Try Geoapify if configured
+        if (!empty($geoapifyKey)) {
+            $city = self::fetchCityFromGeoapify($latitude, $longitude, $geoapifyKey);
+            if (!empty($city)) {
+                Log::info("[GEOCODING] Resolved city via Geoapify API: $city");
+                Cache::put($cacheKey, $city, now()->addDays(30));
+                return $city;
+            }
+        }
+
+        Log::warning("[GEOCODING] Failed to resolve city for coordinates ($latitude, $longitude) from all configured providers");
+        return null;
     }
 
     /**
@@ -948,31 +1082,41 @@ class UserGeoMapController extends BaseController
             CURLOPT_RETURNTRANSFER => true,
             CURLOPT_FOLLOWLOCATION => true,
             CURLOPT_TIMEOUT => 5,
+            CURLOPT_SSL_VERIFYPEER => false,
+            CURLOPT_SSL_VERIFYHOST => false,
         ]);
 
         $response = curl_exec($curl);
         $httpCode = curl_getinfo($curl, CURLINFO_HTTP_CODE);
+        $curlErr = curl_error($curl);
         curl_close($curl);
 
         if ($httpCode !== 200 || empty($response)) {
+            Log::warning('[GEOCODING][Geoapify] HTTP request failed', [
+                'http_code' => $httpCode,
+                'curl_error' => $curlErr,
+                'response_snippet' => substr($response ?? '', 0, 200),
+            ]);
             return null;
         }
 
         $data = json_decode($response, true);
-        if (!empty($data['results'][0]['city'])) {
-            return $data['results'][0]['city'];
-        }
-        if (!empty($data['results'][0]['town'])) {
-            return $data['results'][0]['town'];
-        }
-        if (!empty($data['results'][0]['county'])) {
-            return $data['results'][0]['county'];
-        }
-        if (!empty($data['results'][0]['state'])) {
-            return $data['results'][0]['state'];
-        }
+        $result = $data['results'][0] ?? [];
+        $city = $result['city']
+            ?? $result['town']
+            ?? $result['municipality']
+            ?? $result['suburb']
+            ?? $result['county']
+            ?? $result['state']
+            ?? null;
 
-        return null;
+        Log::info('[GEOCODING][Geoapify] API response', [
+            'http_code' => $httpCode,
+            'resolved_city' => $city,
+            'result_keys' => !empty($result) ? array_keys($result) : [],
+        ]);
+
+        return $city;
     }
 
     /**
@@ -986,22 +1130,48 @@ class UserGeoMapController extends BaseController
             CURLOPT_RETURNTRANSFER => true,
             CURLOPT_FOLLOWLOCATION => true,
             CURLOPT_TIMEOUT => 5,
+            CURLOPT_SSL_VERIFYPEER => false,
+            CURLOPT_SSL_VERIFYHOST => false,
         ]);
 
         $response = curl_exec($curl);
         $httpCode = curl_getinfo($curl, CURLINFO_HTTP_CODE);
+        $curlErr = curl_error($curl);
         curl_close($curl);
 
         if ($httpCode !== 200 || empty($response)) {
+            Log::warning('[GEOCODING][Google] HTTP request failed', [
+                'http_code' => $httpCode,
+                'curl_error' => $curlErr,
+                'response_snippet' => substr($response ?? '', 0, 200),
+            ]);
             return null;
         }
 
         $data = json_decode($response, true);
+        $status = $data['status'] ?? 'UNKNOWN';
+
+        if ($status !== 'OK') {
+            Log::warning('[GEOCODING][Google] Google Geocoding returned non-OK status', [
+                'status' => $status,
+                'error_message' => $data['error_message'] ?? null,
+            ]);
+        }
+
         if (!empty($data['results'])) {
             foreach ($data['results'] as $result) {
                 if (isset($result['address_components'])) {
                     foreach ($result['address_components'] as $component) {
                         if (in_array('locality', $component['types'])) {
+                            return $component['long_name'];
+                        }
+                    }
+                }
+            }
+            foreach ($data['results'] as $result) {
+                if (isset($result['address_components'])) {
+                    foreach ($result['address_components'] as $component) {
+                        if (in_array('postal_town', $component['types'])) {
                             return $component['long_name'];
                         }
                     }
@@ -1016,6 +1186,15 @@ class UserGeoMapController extends BaseController
                     }
                 }
             }
+            foreach ($data['results'] as $result) {
+                if (isset($result['address_components'])) {
+                    foreach ($result['address_components'] as $component) {
+                        if (in_array('administrative_area_level_1', $component['types'])) {
+                            return $component['long_name'];
+                        }
+                    }
+                }
+            }
         }
 
         return null;
@@ -1024,7 +1203,7 @@ class UserGeoMapController extends BaseController
     /**
      * Compute approximate region coordinates within a 3-10 km radius for Ghost Mode.
      */
-    public static function getApproximateCoordinates($latitude, $longitude, $userId = null, $radiusKm = 5.0)
+    public static function getApproximateCoordinates($latitude, $longitude, $userId = null, $radiusKm = 10.0)
     {
         $radius = min(max((float) $radiusKm, 3.0), 10.0);
 

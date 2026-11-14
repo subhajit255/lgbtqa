@@ -19,7 +19,7 @@ return new class extends Migration
                 $table->boolean('ghost_mode')->default(false)->after('city');
             }
             if (!Schema::hasColumn('user_locations', 'approximate_region_radius_km')) {
-                $table->unsignedTinyInteger('approximate_region_radius_km')->default(5)->after('ghost_mode');
+                $table->unsignedTinyInteger('approximate_region_radius_km')->default(10)->after('ghost_mode');
             }
         });
     }
