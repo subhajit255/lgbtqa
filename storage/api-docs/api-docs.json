@@ -9226,57 +9226,6 @@
                         "bearerAuth": []
                     }
                 ]
-            },
-            "post": {
-                "tags": [
-                    "Map"
-                ],
-                "summary": "Add or update a recent search item",
-                "operationId": "50b9f7b51551fa1936287ee18a61b881",
-                "requestBody": {
-                    "required": true,
-                    "content": {
-                        "application/json": {
-                            "schema": {
-                                "required": [
-                                    "item_type"
-                                ],
-                                "properties": {
-                                    "item_type": {
-                                        "type": "string",
-                                        "enum": [
-                                            "keyword",
-                                            "user",
-                                            "event",
-                                            "place",
-                                            "filter_preset"
-                                        ]
-                                    },
-                                    "query_text": {
-                                        "type": "string"
-                                    },
-                                    "target_id": {
-                                        "type": "integer"
-                                    },
-                                    "metadata": {
-                                        "type": "object"
-                                    }
-                                },
-                                "type": "object"
-                            }
-                        }
-                    }
-                },
-                "responses": {
-                    "200": {
-                        "description": "Recent search added successfully"
-                    }
-                },
-                "security": [
-                    {
-                        "bearerAuth": []
-                    }
-                ]
             }
         },
         "/api/map/recent/clear": {
@@ -9354,6 +9303,93 @@
                     },
                     "500": {
                         "description": "Something went wrong"
+                    }
+                },
+                "security": [
+                    {
+                        "bearerAuth": []
+                    }
+                ]
+            }
+        },
+        "/api/map/ghost-mode": {
+            "post": {
+                "tags": [
+                    "Map"
+                ],
+                "summary": "Toggle Ghost Mode on the map",
+                "description": "Toggles Ghost Mode on/off. If enabled, it disables it; if disabled, it enables it. When active, exact GPS location is hidden, only city and approximate 3-10km region are shown, and the map appears dimmed.",
+                "operationId": "5124a84313395c68614c7a70c6377426",
+                "requestBody": {
+                    "required": false,
+                    "content": {
+                        "application/json": {
+                            "schema": {
+                                "properties": {
+                                    "ghost_mode": {
+                                        "description": "Optional explicit boolean. If omitted, automatically toggles current state.",
+                                        "type": "boolean",
+                                        "example": true
+                                    },
+                                    "approximate_region_radius_km": {
+                                        "description": "Optional region radius in km (3-10 km). Defaults to 5.",
+                                        "type": "integer",
+                                        "example": 5
+                                    }
+                                },
+                                "type": "object"
+                            }
+                        }
+                    }
+                },
+                "responses": {
+                    "200": {
+                        "description": "Ghost mode toggled successfully",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "properties": {
+                                        "status": {
+                                            "type": "boolean",
+                                            "example": true
+                                        },
+                                        "response_code": {
+                                            "type": "integer",
+                                            "example": 200
+                                        },
+                                        "message": {
+                                            "type": "string",
+                                            "example": "Ghost mode enabled successfully"
+                                        },
+                                        "data": {
+                                            "properties": {
+                                                "ghost_mode": {
+                                                    "type": "boolean",
+                                                    "example": true
+                                                },
+                                                "map_dimmed": {
+                                                    "type": "boolean",
+                                                    "example": true
+                                                },
+                                                "city": {
+                                                    "type": "string",
+                                                    "example": "New York"
+                                                },
+                                                "approximate_region_radius_km": {
+                                                    "type": "integer",
+                                                    "example": 5
+                                                }
+                                            },
+                                            "type": "object"
+                                        }
+                                    },
+                                    "type": "object"
+                                }
+                            }
+                        }
+                    },
+                    "401": {
+                        "description": "Unauthorized"
                     }
                 },
                 "security": [

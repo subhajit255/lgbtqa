@@ -18,6 +18,9 @@ return new class extends Migration
             if (!Schema::hasColumn('user_locations', 'ghost_mode')) {
                 $table->boolean('ghost_mode')->default(false)->after('city');
             }
+            if (!Schema::hasColumn('user_locations', 'approximate_region_radius_km')) {
+                $table->unsignedTinyInteger('approximate_region_radius_km')->default(5)->after('ghost_mode');
+            }
         });
     }
 
@@ -32,6 +35,9 @@ return new class extends Migration
             }
             if (Schema::hasColumn('user_locations', 'ghost_mode')) {
                 $table->dropColumn('ghost_mode');
+            }
+            if (Schema::hasColumn('user_locations', 'approximate_region_radius_km')) {
+                $table->dropColumn('approximate_region_radius_km');
             }
         });
     }

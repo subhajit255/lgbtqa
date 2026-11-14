@@ -304,11 +304,9 @@ Route::middleware(['auth:api', \App\Http\Middleware\UpdateUserLastActivity::clas
         Route::get('/events', 'getEventsOnMap');
         Route::get('/suggested-searches', 'getSuggestedSearches');
         Route::get('/recent', 'getRecentSearches');
-        Route::post('/recent', 'addRecentSearch');
         Route::delete('/recent/clear', 'clearRecentSearches');
         Route::delete('/recent/{id}', 'deleteRecentSearch');
         Route::post('/favourite/{user_id}', 'toggleFavourite');
-        Route::get('/ghost-mode', 'getGhostMode');
-        Route::post('/ghost-mode', 'updateGhostMode');
+        Route::post('/ghost-mode', 'toggleGhostMode');
     });
 });

@@ -201,6 +201,22 @@ class UserGeoMapController extends BaseController
                         $hq->where('hobby_items.name', 'like', "%{$search}%");
                     });
             });
+
+            // Automatically record recent search internally
+            try {
+                UserRecentSearch::updateOrCreate(
+                    [
+                        'user_id' => $user->id,
+                        'item_type' => 'keyword',
+                        'query_text' => trim($search),
+                    ],
+                    [
+                        'updated_at' => now(),
+                    ]
+                );
+            } catch (\Throwable $e) {
+                logger("Error saving recent keyword search: " . $e->getMessage());
+            }
         }
 
         // Filter by Audience
@@ -612,23 +628,7 @@ class UserGeoMapController extends BaseController
     }
 
     /**
-     * @OA\Post(
-     *     path="/api/map/recent",
-     *     summary="Add or update a recent search item",
-     *     tags={"Map"},
-     *     security={{"bearerAuth":{}}},
-     *     @OA\RequestBody(
-     *         required=true,
-     *         @OA\JsonContent(
-     *             required={"item_type"},
-     *             @OA\Property(property="item_type", type="string", enum={"keyword", "user", "event", "place", "filter_preset"}),
-     *             @OA\Property(property="query_text", type="string"),
-     *             @OA\Property(property="target_id", type="integer"),
-     *             @OA\Property(property="metadata", type="object")
-     *         )
-     *     ),
-     *     @OA\Response(response=200, description="Recent search added successfully")
-     * )
+     * Internal helper to add or update a recent search item.
      */
     public function addRecentSearch(Request $request)
     {
@@ -757,24 +757,30 @@ class UserGeoMapController extends BaseController
     }
 
     /**
-     * @OA\Get(
+     * @OA\Post(
      *     path="/api/map/ghost-mode",
-     *     summary="Get Ghost Mode status for authenticated user",
-     *     description="Retrieve Ghost Mode status, whether map is dimmed, and resolved city name",
+     *     summary="Toggle Ghost Mode on the map",
+     *     description="Toggles Ghost Mode on/off. If enabled, it disables it; if disabled, it enables it. When active, exact GPS location is hidden, only city and approximate 3-10km region are shown, and the map appears dimmed.",
      *     tags={"Map"},
      *     security={{"bearerAuth":{}}},
+     *     @OA\RequestBody(
+     *         required=false,
+     *         @OA\JsonContent(
+     *             @OA\Property(property="ghost_mode", type="boolean", example=true, description="Optional explicit boolean. If omitted, automatically toggles current state."),
+     *             @OA\Property(property="approximate_region_radius_km", type="integer", example=5, description="Optional region radius in km (3-10 km). Defaults to 5.")
+     *         )
+     *     ),
      *     @OA\Response(
      *         response=200,
-     *         description="Ghost mode status retrieved successfully",
+     *         description="Ghost mode toggled successfully",
      *         @OA\JsonContent(
      *             type="object",
      *             @OA\Property(property="status", type="boolean", example=true),
      *             @OA\Property(property="response_code", type="integer", example=200),
-     *             @OA\Property(property="message", type="string", example="Ghost mode status retrieved successfully"),
+     *             @OA\Property(property="message", type="string", example="Ghost mode enabled successfully"),
      *             @OA\Property(
      *                 property="data",
      *                 type="object",
-     *                 @OA\Property(property="is_ghost_mode", type="boolean", example=true),
      *                 @OA\Property(property="ghost_mode", type="boolean", example=true),
      *                 @OA\Property(property="map_dimmed", type="boolean", example=true),
      *                 @OA\Property(property="city", type="string", example="New York"),
@@ -785,121 +791,94 @@ class UserGeoMapController extends BaseController
      *     @OA\Response(response=401, description="Unauthorized")
      * )
      */
-    public function getGhostMode(Request $request)
+    public function toggleGhostMode(Request $request)
     {
         $user = auth()->user();
         if (!$user) {
             return $this->responseJson(false, 401, 'Unauthorized');
         }
-
-        $toggle = AppSettingToggle::firstOrCreate(
-            ['user_id' => $user->id],
-            ['ghost_mode' => false]
-        );
 
         $userLocation = UserLocation::where('user_id', $user->id)->first();
-        $isGhost = false;
-        if ($userLocation && isset($userLocation->ghost_mode)) {
-            $isGhost = (bool) $userLocation->ghost_mode;
-        } else {
-            $isGhost = (bool) $toggle->ghost_mode;
-        }
-        $city = $userLocation?->city ?? $user->profile?->living_in_city;
-
-        if (!$city && $userLocation && $userLocation->lat && $userLocation->lng) {
-            $city = $this->getCity($userLocation->lat, $userLocation->lng);
-        }
-
-        return $this->responseJson(true, 200, 'Ghost mode status retrieved successfully', [
-            'is_ghost_mode' => $isGhost,
-            'ghost_mode' => $isGhost,
-            'map_dimmed' => $isGhost,
-            'city' => $city,
-            'approximate_region_radius_km' => 5,
-            'how_it_works' => [
-                'Your exact location is hidden from all users',
-                'Only your city is shown (no GPS coordinates)',
-                'Optional approximate region (3-10 km radius)',
-                'Map appears dimmed when active',
-                'You can still browse and match with others',
-            ],
-            'note' => "Ghost Mode is independent from matching visibility. You'll still appear in card stacks based on your profile settings.",
-        ]);
-    }
-
-    /**
-     * @OA\Post(
-     *     path="/api/map/ghost-mode",
-     *     summary="Enable, disable, or toggle Ghost Mode on the map",
-     *     description="Toggle Ghost Mode. When active, exact GPS location is hidden, only city and approximate 3-10km region are shown, and the map appears dimmed.",
-     *     tags={"Map"},
-     *     security={{"bearerAuth":{}}},
-     *     @OA\RequestBody(
-     *         required=false,
-     *         @OA\JsonContent(
-     *             @OA\Property(property="ghost_mode", type="boolean", example=true, description="True to enable, false to disable. If omitted, toggles current value.")
-     *         )
-     *     ),
-     *     @OA\Response(
-     *         response=200,
-     *         description="Ghost mode updated successfully"
-     *     ),
-     *     @OA\Response(response=401, description="Unauthorized")
-     * )
-     */
-    public function updateGhostMode(Request $request)
-    {
-        $user = auth()->user();
-        if (!$user) {
-            return $this->responseJson(false, 401, 'Unauthorized');
-        }
-
         $toggle = AppSettingToggle::firstOrCreate(
             ['user_id' => $user->id],
             ['ghost_mode' => false]
         );
 
-        if ($request->has('ghost_mode')) {
-            $enableGhost = $request->boolean('ghost_mode');
-        } elseif ($request->has('enable')) {
-            $enableGhost = $request->boolean('enable');
+        // Determine current status: check user_locations first, fallback to app_setting_toggles
+        $currentStatus = false;
+        if ($userLocation && isset($userLocation->ghost_mode)) {
+            $currentStatus = (bool) $userLocation->ghost_mode;
         } else {
-            $enableGhost = !$toggle->ghost_mode;
+            $currentStatus = (bool) $toggle->ghost_mode;
         }
 
-        $toggle->ghost_mode = $enableGhost;
+        // Check user input: if explicitly provided use it; otherwise toggle (if enable then disable and vice versa)
+        if ($request->has('ghost_mode')) {
+            $newStatus = $request->boolean('ghost_mode');
+        } elseif ($request->has('enable')) {
+            $newStatus = $request->boolean('enable');
+        } else {
+            $newStatus = !$currentStatus;
+        }
+
+        // Determine approximate_region_radius_km (between 3 and 10 km, default 5)
+        $radius = 5;
+        if ($request->filled('approximate_region_radius_km') && is_numeric($request->approximate_region_radius_km)) {
+            $radius = min(max((int) $request->approximate_region_radius_km, 3), 10);
+        } elseif ($userLocation && isset($userLocation->approximate_region_radius_km) && $userLocation->approximate_region_radius_km > 0) {
+            $radius = min(max((int) $userLocation->approximate_region_radius_km, 3), 10);
+        }
+
+        // Update AppSettingToggle
+        $toggle->ghost_mode = $newStatus;
         $toggle->save();
 
-        $userLocation = UserLocation::where('user_id', $user->id)->first();
-        if ($userLocation && Schema::hasColumn('user_locations', 'ghost_mode')) {
-            $userLocation->update(['ghost_mode' => $enableGhost]);
-        }
-
-        // Resolve and cache city if ghost mode is enabled
+        // Resolve and cache city if location is available
         $city = $userLocation?->city ?? $user->profile?->living_in_city;
-
         if ($userLocation && $userLocation->lat && $userLocation->lng) {
             $resolvedCity = $this->getCity($userLocation->lat, $userLocation->lng);
             if ($resolvedCity) {
                 $city = $resolvedCity;
-                if (Schema::hasColumn('user_locations', 'city')) {
-                    $userLocation->update(['city' => $city]);
-                }
-                if ($user->profile) {
-                    $user->profile->update(['living_in_city' => $city]);
-                }
             }
         }
 
-        $msg = $enableGhost ? 'Ghost mode enabled successfully' : 'Ghost mode disabled successfully';
+        // Update UserLocation with city, ghost_mode, and approximate_region_radius_km
+        if ($userLocation) {
+            $updateData = [];
+            if ($city && Schema::hasColumn('user_locations', 'city')) {
+                $updateData['city'] = $city;
+            }
+            if (Schema::hasColumn('user_locations', 'ghost_mode')) {
+                $updateData['ghost_mode'] = $newStatus;
+            }
+            if (Schema::hasColumn('user_locations', 'approximate_region_radius_km')) {
+                $updateData['approximate_region_radius_km'] = $radius;
+            }
+            if (!empty($updateData)) {
+                $userLocation->update($updateData);
+            }
+        }
 
-        return $this->responseJson(true, 200, $msg, [
-            'is_ghost_mode' => $enableGhost,
-            'ghost_mode' => $enableGhost,
-            'map_dimmed' => $enableGhost,
+        if ($city && $user->profile) {
+            $user->profile->update(['living_in_city' => $city]);
+        }
+
+        $message = $newStatus ? 'Ghost mode enabled successfully' : 'Ghost mode disabled successfully';
+
+        return $this->responseJson(true, 200, $message, [
+            'ghost_mode' => $newStatus,
+            'map_dimmed' => $newStatus,
             'city' => $city,
-            'approximate_region_radius_km' => 5,
+            'approximate_region_radius_km' => $newStatus ? $radius : null,
         ]);
+    }
+
+    /**
+     * Alias for toggleGhostMode to ensure backwards compatibility.
+     */
+    public function updateGhostMode(Request $request)
+    {
+        return $this->toggleGhostMode($request);
     }
 
     /**
@@ -924,12 +903,12 @@ class UserGeoMapController extends BaseController
         $cacheKey = 'geo_city_' . round((float) $latitude, 2) . '_' . round((float) $longitude, 2);
 
         return Cache::remember($cacheKey, now()->addDays(30), function () use ($latitude, $longitude) {
-            $googleKey = env('GOOGLE_API_KEY') 
-                ?? config('constants.GEOLOCATION_API_KEY') 
+            $googleKey = env('GOOGLE_API_KEY')
+                ?? config('constants.GEOLOCATION_API_KEY')
                 ?? config('services.google.maps_api_key');
 
-            $geoapifyKey = env('GEOAPIFY_API_KEY') 
-                ?? config('services.geoapify.api_key') 
+            $geoapifyKey = env('GEOAPIFY_API_KEY')
+                ?? config('services.geoapify.api_key')
                 ?? config('constants.GEOAPIFY_API_KEY');
 
             // 1. Primary: Use GOOGLE_API_KEY from .env with Google Geocoding API
@@ -1047,11 +1026,13 @@ class UserGeoMapController extends BaseController
      */
     public static function getApproximateCoordinates($latitude, $longitude, $userId = null, $radiusKm = 5.0)
     {
+        $radius = min(max((float) $radiusKm, 3.0), 10.0);
+
         if (empty($latitude) || empty($longitude)) {
             return [
                 'approximate_latitude' => null,
                 'approximate_longitude' => null,
-                'approximate_radius_km' => $radiusKm,
+                'approximate_radius_km' => (int) $radius,
             ];
         }
 
@@ -1059,8 +1040,8 @@ class UserGeoMapController extends BaseController
         $seed = ($userId ?? 1) + (int) date('z');
         mt_srand($seed);
 
-        // Distance between 3 km and 7 km (within 3-10 km radius)
-        $distance = 3.0 + (mt_rand(0, 400) / 100);
+        // Distance between 50% and 90% of the selected radius (3-10 km)
+        $distance = ($radius * 0.5) + (($radius * 0.4) * (mt_rand(0, 100) / 100));
         $angle = mt_rand(0, 360) * (M_PI / 180);
 
         mt_srand(); // Reset random seed
@@ -1074,7 +1055,7 @@ class UserGeoMapController extends BaseController
         return [
             'approximate_latitude' => $approxLat,
             'approximate_longitude' => $approxLng,
-            'approximate_radius_km' => (float) $radiusKm,
+            'approximate_radius_km' => (int) $radius,
         ];
     }
 }

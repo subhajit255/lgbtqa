@@ -14,6 +14,7 @@ class UserLocation extends Model
 
     protected $casts = [
         'ghost_mode' => 'boolean',
+        'approximate_region_radius_km' => 'integer',
         'last_pinged_at' => 'datetime',
     ];
 

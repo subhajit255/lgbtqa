@@ -44,7 +44,10 @@ class UserResource extends JsonResource
         if ($isGhostMode && !$isSelf) {
             $latitude = null;
             $longitude = null;
-            $approx = UserGeoMapController::getApproximateCoordinates($rawLat, $rawLng, $this->id, 5.0);
+            $radius = (int) ($this->userLocation?->approximate_region_radius_km ?? 5);
+            $radius = min(max($radius, 3), 10);
+
+            $approx = UserGeoMapController::getApproximateCoordinates($rawLat, $rawLng, $this->id, $radius);
             $approxLat = $approx['approximate_latitude'];
             $approxLng = $approx['approximate_longitude'];
             $approxRadius = $approx['approximate_radius_km'];
