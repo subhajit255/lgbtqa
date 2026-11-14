@@ -40,8 +40,8 @@ class UserResource extends JsonResource
             }) ?? 0,
             'created_at' => $this->created_at,
             'updated_at' => $this->updated_at,
-            'latitude' => $this->userLocation?->latitude,
-            'longitude' => $this->userLocation?->longitude,
+            'latitude' => $this->userLocation?->lat,
+            'longitude' => $this->userLocation?->lng,
         ];
     }
 }
