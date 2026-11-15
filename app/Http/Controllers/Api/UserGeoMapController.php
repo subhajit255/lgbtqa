@@ -424,6 +424,19 @@ class UserGeoMapController extends BaseController
             ->take($limit)
             ->get();
 
+        // Eagerly resolve is_favourite for each user relative to authenticated viewer
+        if ($user && $users->isNotEmpty()) {
+            $favouriteUserIds = UserFavouriteProfile::where('user_id', $user->id)
+                ->whereIn('favourite_user_id', $users->pluck('id'))
+                ->pluck('favourite_user_id')
+                ->flip()
+                ->toArray();
+
+            foreach ($users as $u) {
+                $u->is_favourite = isset($favouriteUserIds[$u->id]);
+            }
+        }
+
         $currentUserGhostMode = (bool) ($user->appSettingToggle?->ghost_mode ?? false);
 
         return response()->json([
@@ -803,7 +816,24 @@ class UserGeoMapController extends BaseController
      *     tags={"Map"},
      *     security={{"bearerAuth":{}}},
      *     @OA\Parameter(name="user_id", in="path", required=true, description="ID of the user to toggle favourite status", @OA\Schema(type="integer")),
-     *     @OA\Response(response=200, description="User added or removed from favourites"),
+     *     @OA\Response(
+     *         response=200,
+     *         description="User favourite status toggled successfully",
+     *         @OA\JsonContent(
+     *             type="object",
+     *             @OA\Property(property="status", type="boolean", example=true),
+     *             @OA\Property(property="response_code", type="integer", example=200),
+     *             @OA\Property(property="message", type="string", example="User added to favourites"),
+     *             @OA\Property(property="is_favourite", type="boolean", example=true),
+     *             @OA\Property(
+     *                 property="data",
+     *                 type="object",
+     *                 @OA\Property(property="is_favourite", type="boolean", example=true),
+     *                 @OA\Property(property="user_id", type="integer", example=12)
+     *             )
+     *         )
+     *     ),
+     *     @OA\Response(response=401, description="Unauthorized"),
      *     @OA\Response(response=404, description="User not found"),
      *     @OA\Response(response=500, description="Something went wrong")
      * )
@@ -811,23 +841,65 @@ class UserGeoMapController extends BaseController
     public function toggleFavourite($userId)
     {
         try {
+            $authUser = auth()->user();
+            if (!$authUser) {
+                return $this->responseJson(false, 401, 'Unauthorized');
+            }
+
             $user = User::find($userId);
             if (!$user) {
                 return $this->responseJson(false, 404, 'User not found');
             }
-            $favouriteUser = UserFavouriteProfile::query()->where('user_id', auth()->user()->id)->where('favourite_user_id', $userId)->first();
+
+            if ((int) $user->id === (int) $authUser->id) {
+                return $this->responseJson(false, 422, 'You cannot favourite yourself');
+            }
+
+            $favouriteUser = UserFavouriteProfile::query()
+                ->where('user_id', $authUser->id)
+                ->where('favourite_user_id', $userId)
+                ->first();
+
             if ($favouriteUser) {
                 $favouriteUser->delete();
-                return $this->responseJson(true, 200, 'User removed from favourites');
-            } else {
-                UserFavouriteProfile::create([
-                    'user_id' => auth()->user()->id,
+                Log::info('[FAVOURITE] User removed from favourites', [
+                    'user_id' => $authUser->id,
                     'favourite_user_id' => $userId,
                 ]);
-                return $this->responseJson(true, 200, 'User added into favouritespapi');
+
+                return response()->json([
+                    'status'        => true,
+                    'response_code' => 200,
+                    'message'       => 'User removed from favourites',
+                    'is_favourite'  => false,
+                    'data'          => [
+                        'is_favourite' => false,
+                        'user_id'      => (int) $userId,
+                    ],
+                ], 200);
+            } else {
+                UserFavouriteProfile::create([
+                    'user_id'           => $authUser->id,
+                    'favourite_user_id' => $userId,
+                ]);
+                Log::info('[FAVOURITE] User added to favourites', [
+                    'user_id' => $authUser->id,
+                    'favourite_user_id' => $userId,
+                ]);
+
+                return response()->json([
+                    'status'        => true,
+                    'response_code' => 200,
+                    'message'       => 'User added to favourites',
+                    'is_favourite'  => true,
+                    'data'          => [
+                        'is_favourite' => true,
+                        'user_id'      => (int) $userId,
+                    ],
+                ], 200);
             }
         } catch (\Exception $e) {
-            logger($e->getMessage() . '-' . $e->getLine() . '-' . $e->getFile());
+            Log::error('[FAVOURITE] Error toggling favourite: ' . $e->getMessage() . ' at ' . $e->getFile() . ':' . $e->getLine());
             return $this->responseJson(false, 500, 'Something went wrong');
         }
     }

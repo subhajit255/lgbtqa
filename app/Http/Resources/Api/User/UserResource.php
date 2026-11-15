@@ -3,6 +3,7 @@
 namespace App\Http\Resources\Api\User;
 
 use App\Http\Controllers\Api\UserGeoMapController;
+use App\Models\UserFavouriteProfile;
 use Illuminate\Http\Request;
 use Illuminate\Http\Resources\Json\JsonResource;
 
@@ -17,6 +18,16 @@ class UserResource extends JsonResource
     {
         $viewer = auth()->user();
         $isSelf = $viewer && $viewer->id === $this->id;
+
+        // Check if user is favourited by the authenticated viewer
+        $isFavourite = false;
+        if (isset($this->is_favourite)) {
+            $isFavourite = (bool) $this->is_favourite;
+        } elseif ($viewer && !$isSelf) {
+            $isFavourite = UserFavouriteProfile::where('user_id', $viewer->id)
+                ->where('favourite_user_id', $this->id)
+                ->exists();
+        }
 
         // Check if ghost mode is enabled for this user (checks user_locations and app_setting_toggles)
         $isGhostMode = false;
@@ -99,6 +110,7 @@ class UserResource extends JsonResource
             'updated_at' => $this->updated_at,
             'city' => $city,
             'is_ghost_mode' => $isGhostMode,
+            'is_favourite' => (bool) $isFavourite,
             'latitude' => $latitude,
             'longitude' => $longitude,
             'approximate_latitude' => $approxLat,

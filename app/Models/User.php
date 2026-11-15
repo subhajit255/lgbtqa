@@ -210,4 +210,14 @@ class User extends Authenticatable
     {
         return $this->activeSubscription()->exists();
     }
+
+    public function favouriteProfiles()
+    {
+        return $this->hasMany(UserFavouriteProfile::class, 'user_id');
+    }
+
+    public function favouritedBy()
+    {
+        return $this->hasMany(UserFavouriteProfile::class, 'favourite_user_id');
+    }
 }

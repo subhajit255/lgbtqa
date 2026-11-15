@@ -168,7 +168,8 @@ class UserController extends BaseController
      *                 @OA\Property(property="languages_written", type="array", @OA\Items(type="string")),
      *                 @OA\Property(property="languagesWritten", type="array", @OA\Items(type="string")),
      *                 @OA\Property(property="all_show_on_profile", type="boolean"),
-     *                 @OA\Property(property="allShowOnProfile", type="boolean")
+     *                 @OA\Property(property="allShowOnProfile", type="boolean"),
+     *                 @OA\Property(property="is_ghost_mode", type="boolean", example=false, description="Ghost mode status of user location")
      *             )
      *         )
      *     ),
@@ -178,7 +179,7 @@ class UserController extends BaseController
     public function profileDetails(Request $request)
     {
         try {
-            $userDetails = User::with(['profile', 'hobbies.hobby', 'galleries'])->find(Auth::id());
+            $userDetails = User::with(['profile', 'hobbies.hobby', 'galleries', 'userLocation', 'appSettingToggle'])->find(Auth::id());
             if ($userDetails) {
                 $status = true;
                 $code = 200;

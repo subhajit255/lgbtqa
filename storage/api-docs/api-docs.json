@@ -8137,6 +8137,11 @@
                                                 },
                                                 "allShowOnProfile": {
                                                     "type": "boolean"
+                                                },
+                                                "is_ghost_mode": {
+                                                    "description": "Ghost mode status of user location",
+                                                    "type": "boolean",
+                                                    "example": false
                                                 }
                                             },
                                             "type": "object"
@@ -9306,7 +9311,48 @@
                 ],
                 "responses": {
                     "200": {
-                        "description": "User added or removed from favourites"
+                        "description": "User favourite status toggled successfully",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "properties": {
+                                        "status": {
+                                            "type": "boolean",
+                                            "example": true
+                                        },
+                                        "response_code": {
+                                            "type": "integer",
+                                            "example": 200
+                                        },
+                                        "message": {
+                                            "type": "string",
+                                            "example": "User added to favourites"
+                                        },
+                                        "is_favourite": {
+                                            "type": "boolean",
+                                            "example": true
+                                        },
+                                        "data": {
+                                            "properties": {
+                                                "is_favourite": {
+                                                    "type": "boolean",
+                                                    "example": true
+                                                },
+                                                "user_id": {
+                                                    "type": "integer",
+                                                    "example": 12
+                                                }
+                                            },
+                                            "type": "object"
+                                        }
+                                    },
+                                    "type": "object"
+                                }
+                            }
+                        }
+                    },
+                    "401": {
+                        "description": "Unauthorized"
                     },
                     "404": {
                         "description": "User not found"
