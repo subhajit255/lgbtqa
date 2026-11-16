@@ -115,4 +115,96 @@ class UserGeoMapGhostModeTest extends TestCase
         $profile->assertOk();
         $profile->assertJsonPath('data.is_ghost_mode', true);
     }
+
+    public function test_ghost_mode_persists_when_only_approximate_region_radius_km_is_missing(): void
+    {
+        $user = User::factory()->create();
+        Passport::actingAs($user);
+
+        // Drop only approximate_region_radius_km (simulating live server state)
+        \Illuminate\Support\Facades\Schema::table('user_locations', function ($table) {
+            $table->dropColumn('approximate_region_radius_km');
+        });
+
+        // 1. Enable ghost mode
+        $enableResponse = $this->postJson('/api/map/ghost-mode', ['ghost_mode' => true]);
+        $enableResponse->assertOk();
+        $enableResponse->assertJsonPath('data.ghost_mode', true);
+        $enableResponse->assertJsonPath('data.is_ghost_mode', true);
+
+        // Verify it was actually written to user_locations table in DB!
+        $this->assertDatabaseHas('user_locations', [
+            'user_id' => $user->id,
+            'ghost_mode' => true,
+        ]);
+
+        // Profile API must return is_ghost_mode: true
+        $profileResponse = $this->postJson('/api/get/profile');
+        $profileResponse->assertOk();
+        $profileResponse->assertJsonPath('data.is_ghost_mode', true);
+
+        // 2. Disable ghost mode
+        $disableResponse = $this->postJson('/api/map/ghost-mode', ['ghost_mode' => false]);
+        $disableResponse->assertOk();
+        $disableResponse->assertJsonPath('data.ghost_mode', false);
+        $disableResponse->assertJsonPath('data.is_ghost_mode', false);
+
+        // Verify it was actually updated in user_locations table in DB!
+        $this->assertDatabaseHas('user_locations', [
+            'user_id' => $user->id,
+            'ghost_mode' => false,
+        ]);
+
+        // Profile API must return is_ghost_mode: false
+        $profileResponse2 = $this->postJson('/api/get/profile');
+        $profileResponse2->assertOk();
+        $profileResponse2->assertJsonPath('data.is_ghost_mode', false);
+    }
+
+    public function test_ghost_mode_updates_duplicate_user_locations_records(): void
+    {
+        $user = User::factory()->create();
+        Passport::actingAs($user);
+
+        // Create duplicate rows for the same user
+        UserLocation::create([
+            'user_id' => $user->id,
+            'lat' => 10.0,
+            'lng' => 20.0,
+            'ghost_mode' => false,
+        ]);
+        UserLocation::create([
+            'user_id' => $user->id,
+            'lat' => 11.0,
+            'lng' => 21.0,
+            'ghost_mode' => false,
+        ]);
+
+        // Enable ghost mode
+        $response = $this->postJson('/api/map/ghost-mode', ['ghost_mode' => true]);
+        $response->assertOk();
+
+        // Every row for this user should now be ghost_mode = 1
+        $rows = UserLocation::where('user_id', $user->id)->get();
+        $this->assertCount(2, $rows);
+        foreach ($rows as $row) {
+            $this->assertTrue((bool) $row->ghost_mode);
+        }
+
+        // Profile API should see true
+        $profile = $this->postJson('/api/get/profile');
+        $profile->assertOk();
+        $profile->assertJsonPath('data.is_ghost_mode', true);
+    }
+
+    public function test_direct_ghost_mode_route_alias(): void
+    {
+        $user = User::factory()->create();
+        Passport::actingAs($user);
+
+        $response = $this->postJson('/api/ghost-mode', ['ghost_mode' => true]);
+        $response->assertOk();
+        $response->assertJsonPath('data.ghost_mode', true);
+        $response->assertJsonPath('data.is_ghost_mode', true);
+    }
 }

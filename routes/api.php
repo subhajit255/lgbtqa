@@ -289,8 +289,9 @@ Route::middleware(['auth:api', \App\Http\Middleware\UpdateUserLastActivity::clas
         Route::post('request', 'request');
     });
 
-    // Profile Visits
+    // Profile Visits & Privacy
     Route::post('/toggle-hide-visits', [UserController::class, 'toggleHideMyVisits']);
+    Route::post('/ghost-mode', [UserGeoMapController::class, 'toggleGhostMode']);
     Route::post('/profile/visit', [VisitorHistoryApiController::class, 'logVisit']);
     Route::get('/profile/visitors', [VisitorHistoryApiController::class, 'getVisitors']);
 

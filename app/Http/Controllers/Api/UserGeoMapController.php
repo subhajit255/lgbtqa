@@ -106,7 +106,7 @@ class UserGeoMapController extends BaseController
             $locationData['ghost_mode'] = $request->boolean('is_ghost_mode');
         } else {
             // Preserve existing ghost_mode status strictly from user_locations table
-            $existingGhost = $user->userLocation?->ghost_mode;
+            $existingGhost = $user->userLocation?->ghost_mode ?? UserLocation::where('user_id', $user->id)->latest('id')->value('ghost_mode');
             if ($existingGhost !== null) {
                 $locationData['ghost_mode'] = (bool) $existingGhost;
             }
@@ -946,7 +946,7 @@ class UserGeoMapController extends BaseController
             // Determine current status strictly from user_locations table
             $currentStatus = (bool) ($userLocation?->ghost_mode ?? false);
 
-            // Check user input: if explicitly provided use it; otherwise toggle (if enable then disable and vice versa)
+            // Check user input: support multiple parameter naming conventions; fallback to toggle
             if ($request->has('ghost_mode')) {
                 $newStatus = $request->boolean('ghost_mode');
             } elseif ($request->has('is_ghost_mode')) {
@@ -991,38 +991,74 @@ class UserGeoMapController extends BaseController
                 }
             }
 
-            // Update UserLocation with city, ghost_mode, and approximate_region_radius_km
-            $updateData = [
-                'ghost_mode' => $newStatus,
-                'approximate_region_radius_km' => $radius,
-            ];
-            if (!empty($city)) {
-                $updateData['city'] = $city;
+            // Safely check if approximate_region_radius_km and city columns exist in user_locations
+            $hasRadiusColumn = false;
+            try {
+                $hasRadiusColumn = \Illuminate\Support\Facades\Schema::hasColumn('user_locations', 'approximate_region_radius_km');
+            } catch (\Throwable $e) {
+                $hasRadiusColumn = false;
+            }
+
+            $hasCityColumn = false;
+            try {
+                $hasCityColumn = \Illuminate\Support\Facades\Schema::hasColumn('user_locations', 'city');
+            } catch (\Throwable $e) {
+                $hasCityColumn = false;
             }
 
             try {
-                // Update using updateOrCreate to ensure model casting, saving, and lifecycle are honored
-                $userLocation = UserLocation::updateOrCreate(
-                    ['user_id' => $user->id],
-                    array_merge([
-                        'lat' => $userLocation?->lat ?? 0.0,
-                        'lng' => $userLocation?->lng ?? 0.0,
+                if ($userLocation) {
+                    $userLocation->ghost_mode = (bool) $newStatus;
+                    if ($hasCityColumn && !empty($city)) {
+                        $userLocation->city = $city;
+                    }
+                    if ($hasRadiusColumn) {
+                        $userLocation->approximate_region_radius_km = $radius;
+                    }
+                    $userLocation->save();
+                } else {
+                    $createData = [
+                        'user_id' => $user->id,
+                        'lat' => 0.0,
+                        'lng' => 0.0,
+                        'ghost_mode' => (bool) $newStatus,
                         'last_pinged_at' => now(),
-                    ], $updateData)
-                );
+                    ];
+                    if ($hasCityColumn && !empty($city)) {
+                        $createData['city'] = $city;
+                    }
+                    if ($hasRadiusColumn) {
+                        $createData['approximate_region_radius_km'] = $radius;
+                    }
+                    $userLocation = UserLocation::create($createData);
+                }
 
-                // Also ensure any duplicate user_locations rows for this user are updated
-                try {
-                    UserLocation::where('user_id', $user->id)->update([
-                        'ghost_mode' => $newStatus ? 1 : 0,
-                        'approximate_region_radius_km' => $radius,
-                    ]);
-                } catch (\Throwable $ignoredDuplicateUpdate) {}
+                // Also ensure ALL duplicate user_locations rows for this user have ghost_mode updated
+                UserLocation::where('user_id', $user->id)->update([
+                    'ghost_mode' => $newStatus ? 1 : 0,
+                ]);
 
-                Log::info('[GHOST_MODE] user_locations record saved via updateOrCreate', [
+                if ($hasRadiusColumn) {
+                    try {
+                        UserLocation::where('user_id', $user->id)->update([
+                            'approximate_region_radius_km' => $radius,
+                        ]);
+                    } catch (\Throwable $ignoredRadius) {
+                    }
+                }
+
+                if ($hasCityColumn && !empty($city)) {
+                    try {
+                        UserLocation::where('user_id', $user->id)->update([
+                            'city' => $city,
+                        ]);
+                    } catch (\Throwable $ignoredCity) {
+                    }
+                }
+
+                Log::info('[GHOST_MODE] user_locations record successfully updated', [
                     'user_id' => $user->id,
-                    'location_id' => $userLocation->id,
-                    'ghost_mode' => $userLocation->ghost_mode,
+                    'ghost_mode' => (bool) $newStatus,
                 ]);
             } catch (\Illuminate\Database\QueryException $e) {
                 Log::error('[GHOST_MODE] Database QueryException when updating user_locations: ' . $e->getMessage(), [
@@ -1030,24 +1066,13 @@ class UserGeoMapController extends BaseController
                     'error_code' => $e->getCode(),
                 ]);
 
-                // Gracefully handle case where migration hasn't been run yet on server DB
-                if (str_contains($e->getMessage(), 'Unknown column') || $e->getCode() == '42S22') {
-                    Log::warning('[GHOST_MODE] Column missing in user_locations on server DB! Please run `php artisan migrate`. Retrying without new columns.');
-                    unset($updateData['city'], $updateData['ghost_mode'], $updateData['approximate_region_radius_km']);
-                    try {
-                        $userLocation = UserLocation::updateOrCreate(
-                            ['user_id' => $user->id],
-                            array_merge([
-                                'lat' => $userLocation?->lat ?? 0.0,
-                                'lng' => $userLocation?->lng ?? 0.0,
-                                'last_pinged_at' => now(),
-                            ], $updateData)
-                        );
-                    } catch (\Throwable $ignored) {
-                        Log::warning('[GHOST_MODE] Fallback user_locations save failed: ' . $ignored->getMessage());
-                    }
-                } else {
-                    Log::error('[GHOST_MODE] Non-column Database error saving user_locations: ' . $e->getMessage());
+                // Fallback guarantee: execute direct raw/eloquent update on ghost_mode
+                try {
+                    UserLocation::where('user_id', $user->id)->update([
+                        'ghost_mode' => $newStatus ? 1 : 0,
+                    ]);
+                } catch (\Throwable $e2) {
+                    Log::error('[GHOST_MODE] Fallback ghost_mode update failed: ' . $e2->getMessage());
                 }
             } catch (\Throwable $e) {
                 Log::error('[GHOST_MODE] Unexpected error saving user_locations: ' . $e->getMessage());
