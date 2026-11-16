@@ -946,120 +946,163 @@ class UserGeoMapController extends BaseController
      */
     public function toggleGhostMode(Request $request)
     {
-        $user = auth()->user();
-        if (!$user) {
-            return $this->responseJson(false, 401, 'Unauthorized');
-        }
-
-        $userLocation = UserLocation::where('user_id', $user->id)->latest('id')->first();
-
-        // Determine current status directly from user_locations table
-        $currentStatus = (bool) ($userLocation?->ghost_mode ?? false);
-
-        // Check user input: if explicitly provided use it; otherwise toggle (if enable then disable and vice versa)
-        if ($request->has('ghost_mode')) {
-            $newStatus = $request->boolean('ghost_mode');
-        } elseif ($request->has('is_ghost_mode')) {
-            $newStatus = $request->boolean('is_ghost_mode');
-        } elseif ($request->has('isGhostMode')) {
-            $newStatus = $request->boolean('isGhostMode');
-        } elseif ($request->has('ghostMode')) {
-            $newStatus = $request->boolean('ghostMode');
-        } elseif ($request->has('status')) {
-            $newStatus = $request->boolean('status');
-        } elseif ($request->has('enable')) {
-            $newStatus = $request->boolean('enable');
-        } else {
-            $newStatus = !$currentStatus;
-        }
-
-        Log::info('[GHOST_MODE] Toggle request processed', [
-            'user_id' => $user->id,
-            'current_status' => $currentStatus,
-            'requested_ghost_mode' => $request->input('ghost_mode') ?? $request->input('is_ghost_mode'),
-            'new_status' => $newStatus,
-        ]);
-
-        // Determine approximate_region_radius_km (default 10 km, between 3 and 10 km)
-        $radius = 10;
-        if ($request->filled('approximate_region_radius_km') && is_numeric($request->approximate_region_radius_km)) {
-            $radius = min(max((int) $request->approximate_region_radius_km, 3), 10);
-        } elseif ($userLocation && isset($userLocation->approximate_region_radius_km) && $userLocation->approximate_region_radius_km > 0) {
-            $radius = min(max((int) $userLocation->approximate_region_radius_km, 3), 10);
-        }
-
-        // Resolve and cache city if location is available
-        $city = $userLocation?->city ?? $user->profile?->living_in_city;
-        if ($userLocation && $userLocation->lat && $userLocation->lng) {
-            $resolvedCity = $this->getCity($userLocation->lat, $userLocation->lng);
-            if ($resolvedCity) {
-                $city = $resolvedCity;
-            }
-        }
-
-        // Update UserLocation with city, ghost_mode, and approximate_region_radius_km
-        $updateData = [
-            'ghost_mode' => $newStatus,
-            'approximate_region_radius_km' => $radius,
-        ];
-        if (!empty($city)) {
-            $updateData['city'] = $city;
-        }
-
         try {
-            if ($userLocation) {
-                // Update all user_locations records for this user so they are always in sync
-                UserLocation::where('user_id', $user->id)->update($updateData);
-                $userLocation->refresh();
-                Log::info('[GHOST_MODE] user_locations record updated', [
-                    'user_id' => $user->id,
-                    'updateData' => $updateData,
-                ]);
-            } else {
-                // Create user_locations record if none exists so user_locations table reflects ghost_mode
-                $userLocation = UserLocation::create(array_merge([
-                    'user_id' => $user->id,
-                    'lat' => 0.0,
-                    'lng' => 0.0,
-                    'last_pinged_at' => now(),
-                ], $updateData));
-                Log::info('[GHOST_MODE] user_locations record created for ghost_mode', [
-                    'user_id' => $user->id,
-                    'location_id' => $userLocation->id,
-                ]);
+            $user = auth()->user();
+            if (!$user) {
+                return $this->responseJson(false, 401, 'Unauthorized');
             }
-        } catch (\Illuminate\Database\QueryException $e) {
-            Log::error('[GHOST_MODE] QueryException when updating user_locations: ' . $e->getMessage(), [
+
+            $userLocation = UserLocation::where('user_id', $user->id)->latest('id')->first();
+
+            // Determine current status: check user_locations first, fallback to app_setting_toggles
+            $currentStatus = false;
+            if ($userLocation && isset($userLocation->ghost_mode)) {
+                $currentStatus = (bool) $userLocation->ghost_mode;
+            } else {
+                $currentStatus = (bool) ($user->appSettingToggle?->ghost_mode ?? false);
+            }
+
+            // Check user input: if explicitly provided use it; otherwise toggle (if enable then disable and vice versa)
+            if ($request->has('ghost_mode')) {
+                $newStatus = $request->boolean('ghost_mode');
+            } elseif ($request->has('is_ghost_mode')) {
+                $newStatus = $request->boolean('is_ghost_mode');
+            } elseif ($request->has('isGhostMode')) {
+                $newStatus = $request->boolean('isGhostMode');
+            } elseif ($request->has('ghostMode')) {
+                $newStatus = $request->boolean('ghostMode');
+            } elseif ($request->has('status')) {
+                $newStatus = $request->boolean('status');
+            } elseif ($request->has('enable')) {
+                $newStatus = $request->boolean('enable');
+            } else {
+                $newStatus = !$currentStatus;
+            }
+
+            Log::info('[GHOST_MODE] Toggle request processed', [
                 'user_id' => $user->id,
+                'current_status' => $currentStatus,
+                'requested_ghost_mode' => $request->input('ghost_mode') ?? $request->input('is_ghost_mode'),
+                'new_status' => $newStatus,
             ]);
-            throw $e;
-        }
 
-        AppSettingToggle::updateOrCreate(
-            ['user_id' => $user->id],
-            ['ghost_mode' => $newStatus]
-        );
+            // Determine approximate_region_radius_km (default 10 km, between 3 and 10 km)
+            $radius = 10;
+            if ($request->filled('approximate_region_radius_km') && is_numeric($request->approximate_region_radius_km)) {
+                $radius = min(max((int) $request->approximate_region_radius_km, 3), 10);
+            } elseif ($userLocation && isset($userLocation->approximate_region_radius_km) && $userLocation->approximate_region_radius_km > 0) {
+                $radius = min(max((int) $userLocation->approximate_region_radius_km, 3), 10);
+            }
 
-        if (!empty($city)) {
+            // Resolve and cache city if location is available
+            $city = $userLocation?->city ?? $user->profile?->living_in_city;
+            if (empty($city) && $userLocation && !empty($userLocation->lat) && !empty($userLocation->lng)) {
+                try {
+                    $resolvedCity = $this->getCity($userLocation->lat, $userLocation->lng);
+                    if ($resolvedCity) {
+                        $city = $resolvedCity;
+                    }
+                } catch (\Throwable $e) {
+                    Log::warning('[GHOST_MODE] Reverse geocoding failed: ' . $e->getMessage());
+                }
+            }
+
+            // Update UserLocation with city, ghost_mode, and approximate_region_radius_km
+            $updateData = [
+                'ghost_mode' => $newStatus,
+                'approximate_region_radius_km' => $radius,
+            ];
+            if (!empty($city)) {
+                $updateData['city'] = $city;
+            }
+
             try {
-                if ($user->profile) {
-                    $user->profile->update(['living_in_city' => $city]);
+                if ($userLocation) {
+                    // Update all user_locations records for this user so they are always in sync
+                    UserLocation::where('user_id', $user->id)->update($updateData);
+                    Log::info('[GHOST_MODE] user_locations record updated', [
+                        'user_id' => $user->id,
+                        'updateData' => $updateData,
+                    ]);
                 } else {
-                    $user->profile()->create(['living_in_city' => $city]);
+                    // Create user_locations record if none exists so user_locations table reflects ghost_mode
+                    $userLocation = UserLocation::create(array_merge([
+                        'user_id' => $user->id,
+                        'lat' => 0.0,
+                        'lng' => 0.0,
+                        'last_pinged_at' => now(),
+                    ], $updateData));
+                    Log::info('[GHOST_MODE] user_locations record created for ghost_mode', [
+                        'user_id' => $user->id,
+                        'location_id' => $userLocation->id,
+                    ]);
+                }
+            } catch (\Illuminate\Database\QueryException $e) {
+                Log::error('[GHOST_MODE] Database QueryException when updating user_locations: ' . $e->getMessage(), [
+                    'user_id' => $user->id,
+                    'error_code' => $e->getCode(),
+                ]);
+
+                // Gracefully handle case where migration hasn't been run yet on server DB
+                if (str_contains($e->getMessage(), 'Unknown column') || $e->getCode() == '42S22') {
+                    Log::warning('[GHOST_MODE] Column missing in user_locations on server DB! Please run `php artisan migrate`. Retrying without new columns.');
+                    unset($updateData['city'], $updateData['ghost_mode'], $updateData['approximate_region_radius_km']);
+                    try {
+                        if ($userLocation && !empty($updateData)) {
+                            UserLocation::where('user_id', $user->id)->update($updateData);
+                        } elseif (!$userLocation) {
+                            $userLocation = UserLocation::create([
+                                'user_id' => $user->id,
+                                'lat' => 0.0,
+                                'lng' => 0.0,
+                                'last_pinged_at' => now(),
+                            ]);
+                        }
+                    } catch (\Throwable $ignored) {
+                        Log::warning('[GHOST_MODE] Fallback user_locations save failed: ' . $ignored->getMessage());
+                    }
+                } else {
+                    Log::error('[GHOST_MODE] Non-column Database error saving user_locations: ' . $e->getMessage());
                 }
             } catch (\Throwable $e) {
-                Log::error('[GHOST_MODE] Error updating user profile living_in_city: ' . $e->getMessage());
+                Log::error('[GHOST_MODE] Unexpected error saving user_locations: ' . $e->getMessage());
             }
+
+            try {
+                AppSettingToggle::updateOrCreate(
+                    ['user_id' => $user->id],
+                    ['ghost_mode' => $newStatus]
+                );
+            } catch (\Throwable $e) {
+                Log::warning('[GHOST_MODE] Error updating AppSettingToggle: ' . $e->getMessage());
+            }
+
+            if (!empty($city)) {
+                try {
+                    if ($user->profile) {
+                        $user->profile->update(['living_in_city' => $city]);
+                    } else {
+                        $user->profile()->create(['living_in_city' => $city]);
+                    }
+                } catch (\Throwable $e) {
+                    Log::error('[GHOST_MODE] Error updating user profile living_in_city: ' . $e->getMessage());
+                }
+            }
+
+            $message = $newStatus ? 'Ghost mode enabled successfully' : 'Ghost mode disabled successfully';
+
+            return $this->responseJson(true, 200, $message, [
+                'ghost_mode' => $newStatus,
+                'is_ghost_mode' => $newStatus,
+                'map_dimmed' => $newStatus,
+                'city' => $city,
+            ]);
+        } catch (\Throwable $th) {
+            Log::error('[GHOST_MODE] Critical error in toggleGhostMode: ' . $th->getMessage() . ' at ' . $th->getFile() . ':' . $th->getLine(), [
+                'trace' => $th->getTraceAsString(),
+            ]);
+            return $this->responseJson(false, 500, config('constants.CATCH_ERROR_MSG') ?? 'Something went wrong', errorLogAndReturn($th));
         }
-
-        $message = $newStatus ? 'Ghost mode enabled successfully' : 'Ghost mode disabled successfully';
-
-        return $this->responseJson(true, 200, $message, [
-            'ghost_mode' => $newStatus,
-            'is_ghost_mode' => $newStatus,
-            'map_dimmed' => $newStatus,
-            'city' => $city,
-        ]);
     }
 
     /**

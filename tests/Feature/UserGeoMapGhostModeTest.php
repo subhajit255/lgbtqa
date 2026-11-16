@@ -37,4 +37,58 @@ class UserGeoMapGhostModeTest extends TestCase
         ]);
         $this->assertSame(1, UserLocation::where('user_id', $user->id)->count());
     }
+
+    public function test_ghost_mode_toggles_with_existing_location(): void
+    {
+        $user = User::factory()->create();
+        Passport::actingAs($user);
+
+        UserLocation::create([
+            'user_id' => $user->id,
+            'lat' => 40.7128,
+            'lng' => -74.0060,
+            'city' => 'New York',
+            'ghost_mode' => false,
+            'approximate_region_radius_km' => 10,
+        ]);
+
+        $response = $this->postJson('/api/map/ghost-mode');
+
+        $response->assertOk();
+        $response->assertJsonPath('data.ghost_mode', true);
+        $response->assertJsonPath('data.is_ghost_mode', true);
+        $this->assertDatabaseHas('user_locations', [
+            'user_id' => $user->id,
+            'ghost_mode' => true,
+        ]);
+
+        $explicitDisable = $this->postJson('/api/map/ghost-mode', ['is_ghost_mode' => false]);
+        $explicitDisable->assertOk();
+        $explicitDisable->assertJsonPath('data.ghost_mode', false);
+        $explicitDisable->assertJsonPath('data.is_ghost_mode', false);
+    }
+
+    public function test_ghost_mode_handles_missing_user_locations_columns_gracefully(): void
+    {
+        $user = User::factory()->create();
+        Passport::actingAs($user);
+
+        // Drop the ghost_mode column from user_locations to simulate a server where migration has not run yet
+        \Illuminate\Support\Facades\Schema::table('user_locations', function ($table) {
+            $table->dropColumn(['ghost_mode', 'city', 'approximate_region_radius_km']);
+        });
+
+        $response = $this->postJson('/api/map/ghost-mode');
+
+        // Must still succeed with 200 (not 500!)
+        $response->assertOk();
+        $response->assertJsonPath('data.ghost_mode', true);
+        $response->assertJsonPath('data.is_ghost_mode', true);
+
+        // AppSettingToggle should have preserved the status
+        $this->assertDatabaseHas('app_setting_toggles', [
+            'user_id' => $user->id,
+            'ghost_mode' => true,
+        ]);
+    }
 }

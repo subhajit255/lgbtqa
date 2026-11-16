@@ -86,10 +86,14 @@ class User extends Authenticatable
 
     public function getIsGhostModeAttribute(): bool
     {
-        if ($this->relationLoaded('userLocation')) {
-            return (bool) ($this->userLocation?->ghost_mode ?? false);
+        try {
+            if ($this->relationLoaded('userLocation')) {
+                return (bool) ($this->userLocation?->ghost_mode ?? $this->appSettingToggle?->ghost_mode ?? false);
+            }
+            return (bool) ($this->userLocation()->value('ghost_mode') ?? $this->appSettingToggle?->ghost_mode ?? false);
+        } catch (\Throwable $e) {
+            return (bool) ($this->appSettingToggle?->ghost_mode ?? false);
         }
-        return (bool) ($this->userLocation()->value('ghost_mode') ?? false);
     }
 
     public function profile()
