@@ -29,14 +29,12 @@ class UserResource extends JsonResource
                 ->exists();
         }
 
-        // Check if ghost mode is enabled for this user (checks user_locations and app_setting_toggles)
+        // Check if ghost mode is enabled strictly from user_locations table
         $isGhostMode = false;
-        if ($this->userLocation && isset($this->userLocation->ghost_mode)) {
-            $isGhostMode = (bool) $this->userLocation->ghost_mode;
-        } elseif ($this->relationLoaded('appSettingToggle')) {
-            $isGhostMode = (bool) ($this->appSettingToggle?->ghost_mode ?? false);
+        if ($this->relationLoaded('userLocation')) {
+            $isGhostMode = (bool) ($this->userLocation?->ghost_mode ?? false);
         } else {
-            $isGhostMode = (bool) ($this->appSettingToggle?->ghost_mode ?? false);
+            $isGhostMode = (bool) ($this->userLocation()->value('ghost_mode') ?? false);
         }
 
         $rawLat = $this->userLocation?->lat;

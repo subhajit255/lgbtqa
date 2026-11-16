@@ -49,25 +49,12 @@ class ProfileResource extends JsonResource
             }
         }
 
-        // Ghost mode status: maintained from user_locations table, with app_setting_toggles fallback
+        // Ghost mode status: strictly maintained from user_locations table
         $isGhostMode = false;
-        if ($this->relationLoaded('userLocation') && $this->userLocation && $this->userLocation->ghost_mode !== null) {
-            $isGhostMode = (bool) $this->userLocation->ghost_mode;
-        } elseif ($this->relationLoaded('appSettingToggle') && $this->appSettingToggle && $this->appSettingToggle->ghost_mode !== null) {
-            $isGhostMode = (bool) $this->appSettingToggle->ghost_mode;
+        if ($this->relationLoaded('userLocation')) {
+            $isGhostMode = (bool) ($this->userLocation?->ghost_mode ?? false);
         } else {
-            $locGhost = null;
-            try {
-                $locGhost = $this->userLocation()->value('ghost_mode');
-            } catch (\Throwable $e) {
-                $locGhost = null;
-            }
-
-            if ($locGhost !== null) {
-                $isGhostMode = (bool) $locGhost;
-            } else {
-                $isGhostMode = (bool) ($this->appSettingToggle?->ghost_mode ?? $this->appSettingToggle()->value('ghost_mode') ?? false);
-            }
+            $isGhostMode = (bool) ($this->userLocation()->value('ghost_mode') ?? false);
         }
 
         return [

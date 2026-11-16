@@ -105,13 +105,8 @@ class UserGeoMapController extends BaseController
         } elseif ($request->has('is_ghost_mode')) {
             $locationData['ghost_mode'] = $request->boolean('is_ghost_mode');
         } else {
-            // Preserve existing ghost_mode status: check userLocation first, fallback to appSettingToggle
-            $existingGhost = null;
-            if ($user->userLocation && $user->userLocation->ghost_mode !== null) {
-                $existingGhost = (bool) $user->userLocation->ghost_mode;
-            } elseif ($user->appSettingToggle && $user->appSettingToggle->ghost_mode !== null) {
-                $existingGhost = (bool) $user->appSettingToggle->ghost_mode;
-            }
+            // Preserve existing ghost_mode status strictly from user_locations table
+            $existingGhost = $user->userLocation?->ghost_mode;
             if ($existingGhost !== null) {
                 $locationData['ghost_mode'] = (bool) $existingGhost;
             }
@@ -178,19 +173,7 @@ class UserGeoMapController extends BaseController
             }
         }
 
-        if ($request->has('ghost_mode')) {
-            AppSettingToggle::updateOrCreate(
-                ['user_id' => $user->id],
-                ['ghost_mode' => $request->boolean('ghost_mode')]
-            );
-        }
-
-        $isGhostMode = false;
-        if (isset($location->ghost_mode)) {
-            $isGhostMode = (bool) $location->ghost_mode;
-        } else {
-            $isGhostMode = (bool) ($user->appSettingToggle?->ghost_mode ?? false);
-        }
+        $isGhostMode = (bool) ($location->ghost_mode ?? false);
         $location->city = $city;
         $location->ghost_mode = $isGhostMode;
         $location->map_dimmed = $isGhostMode;
@@ -450,7 +433,7 @@ class UserGeoMapController extends BaseController
             }
         }
 
-        $currentUserGhostMode = (bool) ($user->appSettingToggle?->ghost_mode ?? false);
+        $currentUserGhostMode = (bool) ($user->userLocation?->ghost_mode ?? false);
 
         return response()->json([
             'status'        => true,
@@ -960,13 +943,8 @@ class UserGeoMapController extends BaseController
 
             $userLocation = UserLocation::where('user_id', $user->id)->latest('id')->first();
 
-            // Determine current status: check user_locations first, fallback to app_setting_toggles
-            $currentStatus = false;
-            if ($userLocation && isset($userLocation->ghost_mode)) {
-                $currentStatus = (bool) $userLocation->ghost_mode;
-            } else {
-                $currentStatus = (bool) ($user->appSettingToggle?->ghost_mode ?? false);
-            }
+            // Determine current status strictly from user_locations table
+            $currentStatus = (bool) ($userLocation?->ghost_mode ?? false);
 
             // Check user input: if explicitly provided use it; otherwise toggle (if enable then disable and vice versa)
             if ($request->has('ghost_mode')) {
@@ -1073,15 +1051,6 @@ class UserGeoMapController extends BaseController
                 }
             } catch (\Throwable $e) {
                 Log::error('[GHOST_MODE] Unexpected error saving user_locations: ' . $e->getMessage());
-            }
-
-            try {
-                AppSettingToggle::updateOrCreate(
-                    ['user_id' => $user->id],
-                    ['ghost_mode' => $newStatus]
-                );
-            } catch (\Throwable $e) {
-                Log::warning('[GHOST_MODE] Error updating AppSettingToggle: ' . $e->getMessage());
             }
 
             if (!empty($city)) {

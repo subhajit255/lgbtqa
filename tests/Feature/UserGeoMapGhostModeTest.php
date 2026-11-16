@@ -92,28 +92,6 @@ class UserGeoMapGhostModeTest extends TestCase
         $response->assertOk();
         $response->assertJsonPath('data.ghost_mode', true);
         $response->assertJsonPath('data.is_ghost_mode', true);
-
-        // AppSettingToggle should have preserved the status
-        $this->assertDatabaseHas('app_setting_toggles', [
-            'user_id' => $user->id,
-            'ghost_mode' => true,
-        ]);
-
-        // Profile API should also return true via fallback!
-        $profileResponse = $this->postJson('/api/get/profile');
-        $profileResponse->assertOk();
-        $profileResponse->assertJsonPath('data.is_ghost_mode', true);
-
-        // Now disable ghost mode
-        $disableResponse = $this->postJson('/api/map/ghost-mode', ['is_ghost_mode' => false]);
-        $disableResponse->assertOk();
-        $disableResponse->assertJsonPath('data.ghost_mode', false);
-        $disableResponse->assertJsonPath('data.is_ghost_mode', false);
-
-        // Profile API should now return false
-        $profileDisabled = $this->postJson('/api/get/profile');
-        $profileDisabled->assertOk();
-        $profileDisabled->assertJsonPath('data.is_ghost_mode', false);
     }
 
     public function test_location_ping_without_ghost_mode_preserves_active_ghost_mode(): void

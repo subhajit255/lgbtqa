@@ -185,7 +185,6 @@ class UserController extends BaseController
                 Log::info('[PROFILE_DETAILS] User profile fetched', [
                     'user_id' => $userDetails->id,
                     'user_location_ghost_mode' => $userDetails->userLocation?->ghost_mode,
-                    'app_setting_toggle_ghost_mode' => $userDetails->appSettingToggle?->ghost_mode,
                     'is_ghost_mode' => (bool) $userDetails->is_ghost_mode,
                 ]);
 
