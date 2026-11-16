@@ -952,18 +952,9 @@ class UserGeoMapController extends BaseController
         }
 
         $userLocation = UserLocation::where('user_id', $user->id)->latest('id')->first();
-        $toggle = AppSettingToggle::firstOrCreate(
-            ['user_id' => $user->id],
-            ['ghost_mode' => false]
-        );
 
         // Determine current status directly from user_locations table
-        $currentStatus = false;
-        if ($userLocation && isset($userLocation->ghost_mode)) {
-            $currentStatus = (bool) $userLocation->ghost_mode;
-        } else {
-            $currentStatus = (bool) $toggle->ghost_mode;
-        }
+        $currentStatus = (bool) ($userLocation?->ghost_mode ?? false);
 
         // Check user input: if explicitly provided use it; otherwise toggle (if enable then disable and vice versa)
         if ($request->has('ghost_mode')) {
@@ -996,10 +987,6 @@ class UserGeoMapController extends BaseController
         } elseif ($userLocation && isset($userLocation->approximate_region_radius_km) && $userLocation->approximate_region_radius_km > 0) {
             $radius = min(max((int) $userLocation->approximate_region_radius_km, 3), 10);
         }
-
-        // Update AppSettingToggle
-        $toggle->ghost_mode = $newStatus;
-        $toggle->save();
 
         // Resolve and cache city if location is available
         $city = $userLocation?->city ?? $user->profile?->living_in_city;
@@ -1045,12 +1032,13 @@ class UserGeoMapController extends BaseController
             Log::error('[GHOST_MODE] QueryException when updating user_locations: ' . $e->getMessage(), [
                 'user_id' => $user->id,
             ]);
-            if (str_contains($e->getMessage(), 'Unknown column') || $e->getCode() == '42S22') {
-                Log::warning('[GHOST_MODE] Column missing in user_locations on server DB! Run `php artisan migrate`.');
-            } else {
-                throw $e;
-            }
+            throw $e;
         }
+
+        AppSettingToggle::updateOrCreate(
+            ['user_id' => $user->id],
+            ['ghost_mode' => $newStatus]
+        );
 
         if (!empty($city)) {
             try {
