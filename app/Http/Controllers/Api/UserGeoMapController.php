@@ -105,7 +105,13 @@ class UserGeoMapController extends BaseController
         } elseif ($request->has('is_ghost_mode')) {
             $locationData['ghost_mode'] = $request->boolean('is_ghost_mode');
         } else {
-            $existingGhost = $user->userLocation?->ghost_mode ?? $user->appSettingToggle?->ghost_mode;
+            // Preserve existing ghost_mode status: check userLocation first, fallback to appSettingToggle
+            $existingGhost = null;
+            if ($user->userLocation && $user->userLocation->ghost_mode !== null) {
+                $existingGhost = (bool) $user->userLocation->ghost_mode;
+            } elseif ($user->appSettingToggle && $user->appSettingToggle->ghost_mode !== null) {
+                $existingGhost = (bool) $user->appSettingToggle->ghost_mode;
+            }
             if ($existingGhost !== null) {
                 $locationData['ghost_mode'] = (bool) $existingGhost;
             }
@@ -1017,26 +1023,29 @@ class UserGeoMapController extends BaseController
             }
 
             try {
-                if ($userLocation) {
-                    // Update all user_locations records for this user so they are always in sync
-                    UserLocation::where('user_id', $user->id)->update($updateData);
-                    Log::info('[GHOST_MODE] user_locations record updated', [
-                        'user_id' => $user->id,
-                        'updateData' => $updateData,
-                    ]);
-                } else {
-                    // Create user_locations record if none exists so user_locations table reflects ghost_mode
-                    $userLocation = UserLocation::create(array_merge([
-                        'user_id' => $user->id,
-                        'lat' => 0.0,
-                        'lng' => 0.0,
+                // Update using updateOrCreate to ensure model casting, saving, and lifecycle are honored
+                $userLocation = UserLocation::updateOrCreate(
+                    ['user_id' => $user->id],
+                    array_merge([
+                        'lat' => $userLocation?->lat ?? 0.0,
+                        'lng' => $userLocation?->lng ?? 0.0,
                         'last_pinged_at' => now(),
-                    ], $updateData));
-                    Log::info('[GHOST_MODE] user_locations record created for ghost_mode', [
-                        'user_id' => $user->id,
-                        'location_id' => $userLocation->id,
+                    ], $updateData)
+                );
+
+                // Also ensure any duplicate user_locations rows for this user are updated
+                try {
+                    UserLocation::where('user_id', $user->id)->update([
+                        'ghost_mode' => $newStatus ? 1 : 0,
+                        'approximate_region_radius_km' => $radius,
                     ]);
-                }
+                } catch (\Throwable $ignoredDuplicateUpdate) {}
+
+                Log::info('[GHOST_MODE] user_locations record saved via updateOrCreate', [
+                    'user_id' => $user->id,
+                    'location_id' => $userLocation->id,
+                    'ghost_mode' => $userLocation->ghost_mode,
+                ]);
             } catch (\Illuminate\Database\QueryException $e) {
                 Log::error('[GHOST_MODE] Database QueryException when updating user_locations: ' . $e->getMessage(), [
                     'user_id' => $user->id,
@@ -1048,16 +1057,14 @@ class UserGeoMapController extends BaseController
                     Log::warning('[GHOST_MODE] Column missing in user_locations on server DB! Please run `php artisan migrate`. Retrying without new columns.');
                     unset($updateData['city'], $updateData['ghost_mode'], $updateData['approximate_region_radius_km']);
                     try {
-                        if ($userLocation && !empty($updateData)) {
-                            UserLocation::where('user_id', $user->id)->update($updateData);
-                        } elseif (!$userLocation) {
-                            $userLocation = UserLocation::create([
-                                'user_id' => $user->id,
-                                'lat' => 0.0,
-                                'lng' => 0.0,
+                        $userLocation = UserLocation::updateOrCreate(
+                            ['user_id' => $user->id],
+                            array_merge([
+                                'lat' => $userLocation?->lat ?? 0.0,
+                                'lng' => $userLocation?->lng ?? 0.0,
                                 'last_pinged_at' => now(),
-                            ]);
-                        }
+                            ], $updateData)
+                        );
                     } catch (\Throwable $ignored) {
                         Log::warning('[GHOST_MODE] Fallback user_locations save failed: ' . $ignored->getMessage());
                     }

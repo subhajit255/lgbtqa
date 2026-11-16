@@ -62,10 +62,18 @@ class UserGeoMapGhostModeTest extends TestCase
             'ghost_mode' => true,
         ]);
 
+        $profileAfterEnable = $this->postJson('/api/get/profile');
+        $profileAfterEnable->assertOk();
+        $profileAfterEnable->assertJsonPath('data.is_ghost_mode', true);
+
         $explicitDisable = $this->postJson('/api/map/ghost-mode', ['is_ghost_mode' => false]);
         $explicitDisable->assertOk();
         $explicitDisable->assertJsonPath('data.ghost_mode', false);
         $explicitDisable->assertJsonPath('data.is_ghost_mode', false);
+
+        $profileAfterDisable = $this->postJson('/api/get/profile');
+        $profileAfterDisable->assertOk();
+        $profileAfterDisable->assertJsonPath('data.is_ghost_mode', false);
     }
 
     public function test_ghost_mode_handles_missing_user_locations_columns_gracefully(): void
@@ -90,5 +98,43 @@ class UserGeoMapGhostModeTest extends TestCase
             'user_id' => $user->id,
             'ghost_mode' => true,
         ]);
+
+        // Profile API should also return true via fallback!
+        $profileResponse = $this->postJson('/api/get/profile');
+        $profileResponse->assertOk();
+        $profileResponse->assertJsonPath('data.is_ghost_mode', true);
+
+        // Now disable ghost mode
+        $disableResponse = $this->postJson('/api/map/ghost-mode', ['is_ghost_mode' => false]);
+        $disableResponse->assertOk();
+        $disableResponse->assertJsonPath('data.ghost_mode', false);
+        $disableResponse->assertJsonPath('data.is_ghost_mode', false);
+
+        // Profile API should now return false
+        $profileDisabled = $this->postJson('/api/get/profile');
+        $profileDisabled->assertOk();
+        $profileDisabled->assertJsonPath('data.is_ghost_mode', false);
+    }
+
+    public function test_location_ping_without_ghost_mode_preserves_active_ghost_mode(): void
+    {
+        $user = User::factory()->create();
+        Passport::actingAs($user);
+
+        // Enable ghost mode
+        $this->postJson('/api/map/ghost-mode', ['ghost_mode' => true])->assertOk();
+
+        // Location ping without ghost_mode param
+        $locResponse = $this->postJson('/api/map/location', [
+            'latitude' => 28.6139,
+            'longitude' => 77.2090,
+        ]);
+        $locResponse->assertOk();
+        $locResponse->assertJsonPath('data.ghost_mode', true);
+
+        // Profile should still report true
+        $profile = $this->postJson('/api/get/profile');
+        $profile->assertOk();
+        $profile->assertJsonPath('data.is_ghost_mode', true);
     }
 }

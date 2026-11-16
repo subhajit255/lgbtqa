@@ -49,16 +49,25 @@ class ProfileResource extends JsonResource
             }
         }
 
-        // Ghost mode status maintained directly from user_locations table (with app_setting_toggles fallback)
+        // Ghost mode status: maintained from user_locations table, with app_setting_toggles fallback
         $isGhostMode = false;
-        try {
-            if ($this->relationLoaded('userLocation')) {
-                $isGhostMode = (bool) ($this->userLocation?->ghost_mode ?? $this->appSettingToggle?->ghost_mode ?? false);
-            } else {
-                $isGhostMode = (bool) ($this->userLocation()->value('ghost_mode') ?? $this->appSettingToggle?->ghost_mode ?? false);
+        if ($this->relationLoaded('userLocation') && $this->userLocation && $this->userLocation->ghost_mode !== null) {
+            $isGhostMode = (bool) $this->userLocation->ghost_mode;
+        } elseif ($this->relationLoaded('appSettingToggle') && $this->appSettingToggle && $this->appSettingToggle->ghost_mode !== null) {
+            $isGhostMode = (bool) $this->appSettingToggle->ghost_mode;
+        } else {
+            $locGhost = null;
+            try {
+                $locGhost = $this->userLocation()->value('ghost_mode');
+            } catch (\Throwable $e) {
+                $locGhost = null;
             }
-        } catch (\Throwable $e) {
-            $isGhostMode = (bool) ($this->appSettingToggle?->ghost_mode ?? false);
+
+            if ($locGhost !== null) {
+                $isGhostMode = (bool) $locGhost;
+            } else {
+                $isGhostMode = (bool) ($this->appSettingToggle?->ghost_mode ?? $this->appSettingToggle()->value('ghost_mode') ?? false);
+            }
         }
 
         return [
