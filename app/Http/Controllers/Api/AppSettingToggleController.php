@@ -306,6 +306,17 @@ class AppSettingToggleController extends BaseController
 
             if (!empty($updateData)) {
                 $settings->update($updateData);
+
+                // Sync ghost_mode to user_locations table if modified
+                if (isset($updateData['ghost_mode'])) {
+                    try {
+                        \App\Models\UserLocation::where('user_id', $userId)->update([
+                            'ghost_mode' => $updateData['ghost_mode'],
+                        ]);
+                    } catch (\Throwable $e) {
+                        // Ignore if user_locations column missing
+                    }
+                }
             }
 
             return $this->responseJson(true, 200, 'App settings saved successfully.', $settings->fresh());

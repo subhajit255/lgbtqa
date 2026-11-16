@@ -14,6 +14,7 @@ use App\Traits\UploadAble;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Validator;
 use Illuminate\Support\Facades\Hash;
 
@@ -181,6 +182,13 @@ class UserController extends BaseController
         try {
             $userDetails = User::with(['profile', 'hobbies.hobby', 'galleries', 'userLocation', 'appSettingToggle'])->find(Auth::id());
             if ($userDetails) {
+                Log::info('[PROFILE_DETAILS] User profile fetched', [
+                    'user_id' => $userDetails->id,
+                    'user_location_ghost_mode' => $userDetails->userLocation?->ghost_mode,
+                    'app_setting_toggle_ghost_mode' => $userDetails->appSettingToggle?->ghost_mode,
+                    'is_ghost_mode' => (bool) $userDetails->is_ghost_mode,
+                ]);
+
                 $status = true;
                 $code = 200;
                 $response = new ProfileResource($userDetails);

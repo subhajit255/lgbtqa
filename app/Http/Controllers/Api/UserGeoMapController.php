@@ -102,6 +102,13 @@ class UserGeoMapController extends BaseController
 
         if ($request->has('ghost_mode')) {
             $locationData['ghost_mode'] = $request->boolean('ghost_mode');
+        } elseif ($request->has('is_ghost_mode')) {
+            $locationData['ghost_mode'] = $request->boolean('is_ghost_mode');
+        } else {
+            $existingGhost = $user->userLocation?->ghost_mode ?? $user->appSettingToggle?->ghost_mode;
+            if ($existingGhost !== null) {
+                $locationData['ghost_mode'] = (bool) $existingGhost;
+            }
         }
 
         Log::info('[MAP_LOCATION] Saving locationData to user_locations table', [
@@ -944,13 +951,13 @@ class UserGeoMapController extends BaseController
             return $this->responseJson(false, 401, 'Unauthorized');
         }
 
-        $userLocation = UserLocation::where('user_id', $user->id)->first();
+        $userLocation = UserLocation::where('user_id', $user->id)->latest('id')->first();
         $toggle = AppSettingToggle::firstOrCreate(
             ['user_id' => $user->id],
             ['ghost_mode' => false]
         );
 
-        // Determine current status: check user_locations first, fallback to app_setting_toggles
+        // Determine current status directly from user_locations table
         $currentStatus = false;
         if ($userLocation && isset($userLocation->ghost_mode)) {
             $currentStatus = (bool) $userLocation->ghost_mode;
@@ -961,6 +968,14 @@ class UserGeoMapController extends BaseController
         // Check user input: if explicitly provided use it; otherwise toggle (if enable then disable and vice versa)
         if ($request->has('ghost_mode')) {
             $newStatus = $request->boolean('ghost_mode');
+        } elseif ($request->has('is_ghost_mode')) {
+            $newStatus = $request->boolean('is_ghost_mode');
+        } elseif ($request->has('isGhostMode')) {
+            $newStatus = $request->boolean('isGhostMode');
+        } elseif ($request->has('ghostMode')) {
+            $newStatus = $request->boolean('ghostMode');
+        } elseif ($request->has('status')) {
+            $newStatus = $request->boolean('status');
         } elseif ($request->has('enable')) {
             $newStatus = $request->boolean('enable');
         } else {
@@ -970,7 +985,7 @@ class UserGeoMapController extends BaseController
         Log::info('[GHOST_MODE] Toggle request processed', [
             'user_id' => $user->id,
             'current_status' => $currentStatus,
-            'requested_ghost_mode' => $request->input('ghost_mode'),
+            'requested_ghost_mode' => $request->input('ghost_mode') ?? $request->input('is_ghost_mode'),
             'new_status' => $newStatus,
         ]);
 
@@ -996,33 +1011,44 @@ class UserGeoMapController extends BaseController
         }
 
         // Update UserLocation with city, ghost_mode, and approximate_region_radius_km
-        if ($userLocation) {
-            $updateData = [
-                'ghost_mode' => $newStatus,
-                'approximate_region_radius_km' => $radius,
-            ];
-            if (!empty($city)) {
-                $updateData['city'] = $city;
-            }
-            try {
-                $userLocation->update($updateData);
+        $updateData = [
+            'ghost_mode' => $newStatus,
+            'approximate_region_radius_km' => $radius,
+        ];
+        if (!empty($city)) {
+            $updateData['city'] = $city;
+        }
+
+        try {
+            if ($userLocation) {
+                // Update all user_locations records for this user so they are always in sync
+                UserLocation::where('user_id', $user->id)->update($updateData);
+                $userLocation->refresh();
                 Log::info('[GHOST_MODE] user_locations record updated', [
                     'user_id' => $user->id,
                     'updateData' => $updateData,
                 ]);
-            } catch (\Illuminate\Database\QueryException $e) {
-                Log::error('[GHOST_MODE] QueryException when updating user_locations: ' . $e->getMessage(), [
+            } else {
+                // Create user_locations record if none exists so user_locations table reflects ghost_mode
+                $userLocation = UserLocation::create(array_merge([
                     'user_id' => $user->id,
+                    'lat' => 0.0,
+                    'lng' => 0.0,
+                    'last_pinged_at' => now(),
+                ], $updateData));
+                Log::info('[GHOST_MODE] user_locations record created for ghost_mode', [
+                    'user_id' => $user->id,
+                    'location_id' => $userLocation->id,
                 ]);
-                if (str_contains($e->getMessage(), 'Unknown column') || $e->getCode() == '42S22') {
-                    Log::warning('[GHOST_MODE] Column missing in user_locations on server DB! Run `php artisan migrate`.');
-                    unset($updateData['city'], $updateData['ghost_mode'], $updateData['approximate_region_radius_km']);
-                    if (!empty($updateData)) {
-                        $userLocation->update($updateData);
-                    }
-                } else {
-                    throw $e;
-                }
+            }
+        } catch (\Illuminate\Database\QueryException $e) {
+            Log::error('[GHOST_MODE] QueryException when updating user_locations: ' . $e->getMessage(), [
+                'user_id' => $user->id,
+            ]);
+            if (str_contains($e->getMessage(), 'Unknown column') || $e->getCode() == '42S22') {
+                Log::warning('[GHOST_MODE] Column missing in user_locations on server DB! Run `php artisan migrate`.');
+            } else {
+                throw $e;
             }
         }
 
@@ -1042,6 +1068,7 @@ class UserGeoMapController extends BaseController
 
         return $this->responseJson(true, 200, $message, [
             'ghost_mode' => $newStatus,
+            'is_ghost_mode' => $newStatus,
             'map_dimmed' => $newStatus,
             'city' => $city,
         ]);
